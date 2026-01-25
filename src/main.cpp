@@ -6,38 +6,41 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <queue>
 #include <string>
 #include <sw/redis++/redis++.h>
 #include <thread>
+#include <unordered_map>
 
 using namespace sw::redis;
 
+std::unordered_map<std::string, TamaEvent> EVENT_MAP = {
+    {"juniper/redeems/headpat", EVENT_HEADPAT},
+    {"juniper/redeems/hydrate", EVENT_HYDRATE},
+};
+
 #define TRANSPARENT CLITERAL(Color){0x00, 0x00, 0x00, 0x00}
 
-#define WINDOW_HEIGHT 250.0
-#define WINDOW_WIDTH 180.0
+#define WINDOW_HEIGHT 384.0
+#define WINDOW_WIDTH 216.0
 
-void headpat_listener(int *headpat_counter) {
+void headpat_listener(std::queue<TamaEvent> eventQueue) {
   try {
     char *uri = std::getenv("REDIS_CONNECTION_STRING");
     sw::redis::Redis redis(uri);
     auto sub = redis.subscriber();
 
-    sub.on_message([](std::string channel, std::string msg) {});
+    sub.on_message([&eventQueue](std::string channel, std::string msg) {
+      eventQueue.push(EVENT_MAP[channel]);
+    });
 
     sub.subscribe("juniper/redeems/headpat");
+    sub.subscribe("juniper/redeems/hydrate");
 
     bool wtf = false;
     while (true) {
       try {
         sub.consume();
-        if (!wtf) {
-          wtf = true;
-          continue;
-        }
-
-        *headpat_counter += 1;
-
       } catch (const Error &err) {
         std::cerr << "Error in subscriber consume loop: " << err.what()
                   << std::endl;
@@ -52,43 +55,49 @@ void headpat_listener(int *headpat_counter) {
 }
 
 int main() {
-  Color screen = {200, 200, 200, 128};
+  Color screen = {0xad, 0xe0, 0xcf, 0xff};
   SetConfigFlags(FLAG_WINDOW_TRANSPARENT | FLAG_WINDOW_ALWAYS_RUN);
   InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "just-tamagotchi");
   SetTargetFPS(60);
 
-  Tama tama = Tama(WINDOW_WIDTH, WINDOW_HEIGHT, "juniper");
+  Rectangle gameZone =
+      Rectangle{.x = 48, .y = 121, .width = 120, .height = 142};
+  Tama tama = Tama(gameZone, "juniper");
   Image cookieImage = LoadImage("/home/jane/just-stream/just-ray-bahms/"
-                                "just-tamagotchi/assets/cookie.png");
+                                "just-juniper/assets/cookie.png");
   int animationStep = 0;
 
   Image egg = LoadImage(
-      "/home/jane/just-stream/just-ray-bahms/just-tamagotchi/assets/egg.png");
-  Texture2D bg = LoadTextureFromImage(egg);
+      "/home/jane/just-stream/just-ray-bahms/just-juniper/assets/egg.png");
 
-  Rectangle gameZone = Rectangle{.x = 28, .y = 64, .width = 62, .height = 60};
-  Rectangle gameZone2 =
-      Rectangle{.x = 27, .y = 64, .width = 124, .height = 120};
+  Image bottleImg =
+      LoadImage("/home/jane/just-stream/just-ray-bahms/just-juniper/"
+                "assets/water-bottle.png");
+  Texture2D bg = LoadTextureFromImage(egg);
+  Texture2D bottle = LoadTextureFromImage(bottleImg);
+
   Lightning bolt = Lightning(gameZone);
 
   int count = 0;
 
   int blah;
-  std::thread sub_thread(headpat_listener, &tama.headpat);
+  std::thread sub_thread(headpat_listener, tama.eventQueue);
   std::this_thread::sleep_for(std::chrono::seconds(1));
+  UserInput uinput = UserInput();
 
   while (!WindowShouldClose()) {
     count += 1;
     tama.Update();
+    if (uinput.CheckForHeadpat()) {
+      tama.eventQueue.push(EVENT_HEADPAT);
+    }
 
     BeginDrawing();
     ClearBackground(TRANSPARENT);
 
     DrawTexture(bg, 0, 0, WHITE);
-    if (bolt.Update()) {
-      bolt.Draw();
-      DrawRectangleRec(gameZone2, screen);
-    }
+    DrawTexture(bottle, gameZone.x + gameZone.width - bottle.width, gameZone.y,
+                WHITE);
 
     tama.Draw();
     EndDrawing();

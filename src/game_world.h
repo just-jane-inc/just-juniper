@@ -3,10 +3,10 @@
 #include <string>
 #include <vector>
 
+#include "raylib.h"
+
 #ifndef GAME_WORLD
 #define GAME_WORLD
-
-#include "raylib.h"
 
 class Lightning {
 public:
@@ -124,6 +124,22 @@ class GameWorld {
 public:
   Rectangle GameWindow;
   std::vector<Food> Things;
+};
+
+class UserInput {
+public:
+  UserInput() {
+    _headpatButton = Rectangle{.x = 65, .y = 306, .width = 12, .height = 12};
+  }
+
+  bool CheckForHeadpat() {
+    Vector2 mousePoint = GetMousePosition();
+    return IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
+           CheckCollisionPointRec(mousePoint, _headpatButton);
+  }
+
+private:
+  Rectangle _headpatButton;
 };
 
 #endif

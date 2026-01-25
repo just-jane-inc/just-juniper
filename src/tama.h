@@ -1,31 +1,37 @@
 #include "state.h"
 #include <iostream>
+#include <queue>
 #include <raylib.h>
 #include <string>
 
 #ifndef TAMA
 #define TAMA
 
+enum TamaEvent { EVENT_UNSET, EVENT_HEADPAT, EVENT_HYDRATE };
+
 class Tama {
 public:
-  int headpat = 0;
+  std::queue<TamaEvent> eventQueue;
   std::string name;
   TamaState *currentState;
 
-  Tama(int width, int height, std::string name) {
-    _width = width;
-    _height = height;
-    _position = Vector2{.x = 32, .y = 130};
+  Tama(Rectangle gameArea, std::string name) {
+    _gameArea = gameArea;
+
+    // we are subtracting 40 pixels here because the gameArea.y + height would
+    // be top left corner
+    _position =
+        Vector2{.x = gameArea.x, .y = gameArea.y + gameArea.height - 64};
     this->name = name;
 
     std::string rootPath =
-        "/home/jane/just-stream/just-ray-bahms/just-tamagotchi/assets/" + name +
+        "/home/jane/just-stream/just-ray-bahms/just-juniper/assets/" + name +
         "/";
 
     _idleState = Idle(rootPath);
     _walkingState = Walking(rootPath);
-    _walkingState.window =
-        Rectangle{.x = 0, .y = 0, .width = 130, .height = 150};
+    _walkingState.window = Rectangle{
+        .x = 0, .y = 0, .width = gameArea.width, .height = gameArea.height};
     _sleepState = Sleeping(rootPath);
     _eating = Eating(rootPath);
     _headPatState = Headpat(rootPath);
@@ -36,9 +42,24 @@ public:
 
   void Update() {
     State nextState = currentState->Update(_frameCounter);
+
+    if (eventQueue.size() > 0) {
+      TamaEvent e = eventQueue.front();
+      eventQueue.pop();
+      switch (e) {
+      case EVENT_UNSET:
+        break;
+      case EVENT_HYDRATE:
+        std::cout << "hydration!" << std::endl;
+        break;
+      case EVENT_HEADPAT:
+        nextState = HEADPAT;
+        break;
+      }
+    }
+
+    // if the next state is unset we do not transition this frame
     if (nextState != UNSET) {
-      std::cout << "transitioning state!" << currentState->state << "->"
-                << nextState << std::endl;
       this->Transition(nextState);
     }
 
@@ -49,11 +70,6 @@ public:
   void Draw() { currentState->Draw(); }
 
   void Transition(State nextState) {
-    if (headpat > 0) {
-      headpat -= 1;
-      nextState = HEADPAT;
-    }
-
     currentState->ExitState();
     switch (nextState) {
     case UNSET:
@@ -85,9 +101,8 @@ private:
   Walking _walkingState;
   Headpat _headPatState;
 
+  Rectangle _gameArea;
   Vector2 _position;
-  int _width;
-  int _height;
   long _frameCounter;
 };
 
