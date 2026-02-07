@@ -1,3 +1,4 @@
+#pragma once
 #include <string>
 #include <vector>
 
@@ -5,9 +6,6 @@
 
 #include "game_world.h"
 #include "rngesus.h"
-
-#ifndef STATE
-#define STATE
 
 #define FLOOR_Y 24
 
@@ -432,5 +430,3 @@ private:
   int _velocity;
   bool _isHunting;
 };
-
-#endif

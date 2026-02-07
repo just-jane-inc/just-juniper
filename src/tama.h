@@ -1,11 +1,9 @@
+#pragma once
 #include "constants.h"
 #include "state.h"
 #include <queue>
 #include <raylib.h>
 #include <string>
-
-#ifndef TAMA
-#define TAMA
 
 class Tama {
 public:
@@ -19,9 +17,7 @@ public:
     _position = Vector2{.x = gameArea.x, .y = TamaConstant::SCREEN_FLOOR - 48};
     this->name = name;
 
-    std::string rootPath = "/home/jane/just-stream/just-ray-bahms/just-juniper/"
-                           "assets/"
-                           + name + "/";
+    std::string rootPath = std::string(ASSETS_PATH) + name + "/";
 
     _idleState = Idle(rootPath);
     _walkingState = Walking(rootPath);
@@ -84,6 +80,8 @@ public:
     case HEADPAT:
       currentState = &this->_headPatState;
       break;
+    case HYDRATE:
+      break;
     }
 
     currentState->EnterState(&_position);
@@ -100,5 +98,3 @@ private:
   Vector2 _position;
   long _frameCounter;
 };
-
-#endif

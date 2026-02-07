@@ -1,17 +1,15 @@
+#pragma once
+
 #include "constants.h"
 #include "rngesus.h"
 #include <algorithm>
 #include <cstdio>
 #include <ctime>
-#include <iomanip>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "raylib.h"
-
-#ifndef GAME_WORLD
-#define GAME_WORLD
 
 class Lightning {
 public:
@@ -214,11 +212,9 @@ private:
 class DisplayClock {
 public:
   DisplayClock() {
-    _font = LoadFontEx(
-        "/home/jane/just-stream/just-ray-bahms/just-juniper/assets/font.ttf",
-        32,
-        NULL,
-        0);
+    std::string font_path = std::string(ASSETS_PATH) + "font.ttf";
+    _font = LoadFontEx(font_path.c_str(), 32, NULL, 0);
+
     time_t t = time(NULL);
     _time = localtime(&t);
   }
@@ -250,5 +246,3 @@ private:
   long _counter;
   struct tm *_time;
 };
-
-#endif

@@ -1,7 +1,5 @@
+#pragma once
 #include "raylib.h"
-
-#ifndef CONSTANTS_TAMA
-#define CONSTANTS_TAMA
 
 enum TamaEvent { EVENT_UNSET, EVENT_HEADPAT, EVENT_HYDRATE, EVENT_FOOD };
 
@@ -29,5 +27,3 @@ constexpr Vector2 CLOCK_POSITION = {.x = 122, .y = 55};
 constexpr int CLOCK_FONT_SIZE = 20;
 
 } // namespace TamaConstant
-
-#endif

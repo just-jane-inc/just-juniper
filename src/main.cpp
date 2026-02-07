@@ -1,7 +1,6 @@
 #include "raylib.h"
 
 #include "constants.h"
-#include "cookie.h"
 #include "tama.h"
 
 #include <chrono>
@@ -68,14 +67,10 @@ int main() {
       .height = TamaConstant::SCREEN_HEIGHT};
 
   Tama tama = Tama(gameZone, "juniper");
-  Image cookieImage = LoadImage(
-      "/home/jane/just-stream/just-ray-bahms/"
-      "just-juniper/assets/cookie.png");
   int animationStep = 0;
 
-  Image egg = LoadImage(
-      "/home/jane/just-stream/just-ray-bahms/just-juniper/assets/juniper/"
-      "egg.png");
+  std::string path = std::string(ASSETS_PATH) + "/juniper/egg.png";
+  Image egg = LoadImage(path.c_str());
 
   Texture2D bg = LoadTextureFromImage(egg);
 

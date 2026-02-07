@@ -1,9 +1,7 @@
+#pragma once
 #include "raylib.h"
 
 #include <vector>
-
-#ifndef COOKIE
-#define COOKIE
 
 class Cookie {
 public:
@@ -42,5 +40,3 @@ private:
   std::vector<Texture2D> _left;
   int _idx;
 };
-
-#endif
