@@ -1,13 +1,11 @@
+#include "constants.h"
 #include "state.h"
-#include <iostream>
 #include <queue>
 #include <raylib.h>
 #include <string>
 
 #ifndef TAMA
 #define TAMA
-
-enum TamaEvent { EVENT_UNSET, EVENT_HEADPAT, EVENT_HYDRATE };
 
 class Tama {
 public:
@@ -18,25 +16,21 @@ public:
   Tama(Rectangle gameArea, std::string name) {
     _gameArea = gameArea;
 
-    // we are subtracting 40 pixels here because the gameArea.y + height would
-    // be top left corner
-    _position =
-        Vector2{.x = gameArea.x, .y = gameArea.y + gameArea.height - 64};
+    _position = Vector2{.x = gameArea.x, .y = TamaConstant::SCREEN_FLOOR - 48};
     this->name = name;
 
-    std::string rootPath =
-        "/home/jane/just-stream/just-ray-bahms/just-juniper/assets/" + name +
-        "/";
+    std::string rootPath = "/home/jane/just-stream/just-ray-bahms/just-juniper/"
+                           "assets/"
+                           + name + "/";
 
     _idleState = Idle(rootPath);
     _walkingState = Walking(rootPath);
-    _walkingState.window = Rectangle{
-        .x = 0, .y = 0, .width = gameArea.width, .height = gameArea.height};
+    _walkingState.window = gameArea;
     _sleepState = Sleeping(rootPath);
     _eating = Eating(rootPath);
     _headPatState = Headpat(rootPath);
 
-    currentState = &_headPatState;
+    currentState = &_idleState;
     currentState->EnterState(&_position);
   }
 
@@ -48,12 +42,13 @@ public:
       eventQueue.pop();
       switch (e) {
       case EVENT_UNSET:
-        break;
       case EVENT_HYDRATE:
-        std::cout << "hydration!" << std::endl;
         break;
       case EVENT_HEADPAT:
         nextState = HEADPAT;
+        break;
+      case EVENT_FOOD:
+        nextState = EATING;
         break;
       }
     }

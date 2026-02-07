@@ -12,7 +12,7 @@ public:
   Cookie(int height, int width, Image cookie) {
     for (int x = 0; x < cookie.width; x += 8) {
       Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 8, .height = 8};
+          Rectangle{.x = (float)x, .y = 0.0, .width = 8.0, .height = 8.0};
 
       Image partImage = ImageFromImage(cookie, frame);
       _right.push_back(LoadTextureFromImage(partImage));

@@ -9,8 +9,12 @@
 #ifndef STATE
 #define STATE
 
+#define FLOOR_Y 24
+
 const int SPEED = 16;
-enum State { UNSET, IDLE, WALKING, SLEEPING, EATING, HEADPAT };
+enum State { UNSET, IDLE, WALKING, SLEEPING, EATING, HEADPAT, HYDRATE };
+
+void DrawTama(Texture2D texture, Vector2 position);
 
 class TamaState {
 public:
@@ -61,27 +65,27 @@ public:
   State Update(long frameCounter) {
     if (frameCounter % SPEED == 0) {
       counter += 1;
-      if (Flip(0.15)) {
+      if (Flip(0.01)) {
         _velocity *= -1;
       }
     } else {
       return UNSET;
     }
 
-    if (counter < 32 || Flip(.80)) {
+    if (counter < 128 || Flip(.80)) {
       return UNSET;
     }
 
-    return Flip(0.1) ? HEADPAT : WALKING;
+    return Flip(0.75) ? WALKING : SLEEPING;
   }
 
   void Draw() {
     int idx = counter % _texturesRight.size();
 
     if (_velocity > 0) {
-      DrawTextureEx(_texturesRight[idx], _position, 0, 2.0f, WHITE);
+      DrawTama(_texturesRight[idx], _position);
     } else {
-      DrawTextureEx(_texturesLeft[idx], _position, 0, 2.0f, WHITE);
+      DrawTama(_texturesLeft[idx], _position);
     }
   }
 
@@ -125,7 +129,7 @@ public:
     if (frameCounter % SPEED == 0) {
       _counter += 1;
 
-      if (Flip(0.15)) {
+      if (Flip(0.01)) {
         _velocity *= -1;
       }
 
@@ -135,15 +139,16 @@ public:
         _velocity = _velocity * -1;
         _position->x += 2 * _velocity;
       }
+
     } else {
       return UNSET;
     }
 
-    if (_counter < 64 || Flip(0.80)) {
+    if (_counter < 128 || Flip(0.80)) {
       return UNSET;
     }
 
-    return Flip(0.1) ? EATING : SLEEPING;
+    return Flip(0.75) ? IDLE : SLEEPING;
   }
 
   void Draw() {
@@ -155,7 +160,7 @@ public:
       frame = _texturesLeft[idx];
     }
 
-    DrawTextureEx(frame, *_position, 0, 2.0f, WHITE);
+    DrawTama(frame, *_position);
   }
 
 private:
@@ -164,7 +169,8 @@ private:
   int _velocity;
 
   bool IsColliding() {
-    return _position->x < 30 || (_position->x + 24) > window.width;
+    return _position->x <= window.x
+           || (_position->x + 48) >= window.x + window.width;
   }
 };
 
@@ -192,10 +198,15 @@ public:
   }
 
   void EnterState(Vector2 *position) {
-    Vector2 p = Vector2{.x = 0, .y = 0};
-    _food = new Food(_assetsDirectory, *position);
     _counter = 0;
     _position = position;
+
+    Vector2 food_position = {
+        _position->x + _texturesRight[0].width,
+        FLOOR_Y - 8};
+    _food = new Food(
+        _assetsDirectory,
+        _position->x + (_texturesRight[0].width - 2) * 2);
   }
 
   void ExitState() {
@@ -211,7 +222,7 @@ public:
       return UNSET;
     }
 
-    if (_counter > 7 && _food->ChompFromLeft() <= 0) {
+    if (_counter > 7 && _food->ConsumeFromLeft() <= 0) {
       return Flip(0.5) ? IDLE : WALKING;
     }
 
@@ -223,15 +234,8 @@ public:
     tama = _texturesRight[_counter % _texturesRight.size()];
 
     int xoffset = 0;
-    if (_velocity > 0) {
-      xoffset = (tama.width + 16);
-    } else {
-      xoffset = -(tama.width + 16);
-    }
 
-    Vector2 foodPosition =
-        Vector2{.x = _position->x + xoffset, .y = _position->y};
-    DrawTextureEx(tama, *_position, 0, 2.0f, WHITE);
+    DrawTama(tama, *_position);
 
     _food->Draw();
   }
@@ -294,24 +298,20 @@ public:
       return UNSET;
     }
 
-    if (_counter < 16) {
+    if (_counter < 128 || Flip(95)) {
       return UNSET;
     }
 
-    if (Flip(0.01)) {
-      return WALKING;
-    }
-
-    return UNSET;
+    return Flip(0.75) ? IDLE : WALKING;
   };
 
   virtual void Draw() {
     if (_counter < _enterSleepLeft.size() - 1) {
       int idx = _counter % _enterSleepRight.size();
-      DrawTextureEx(_enterSleepRight[idx], _position, 0, 2.0f, WHITE);
+      DrawTama(_enterSleepRight[idx], _position);
     } else {
       int idx = _counter % _texturesRight.size();
-      DrawTextureEx(_texturesRight[idx], _position, 0, 2.0f, WHITE);
+      DrawTama(_texturesRight[idx], _position);
     }
   }
 
@@ -357,7 +357,7 @@ public:
       return UNSET;
     }
 
-    if (_counter >= 16) {
+    if (_counter >= 32) {
       return Flip(0.20) ? WALKING : IDLE;
     }
 
@@ -365,13 +365,72 @@ public:
   }
 
   void Draw() {
-    DrawTextureEx(_texturesRight[_counter % _texturesRight.size()], _position,
-                  0, 2.0f, WHITE);
+    DrawTama(_texturesRight[_counter % _texturesRight.size()], _position);
   }
 
 private:
   Vector2 _position;
   int _counter;
+};
+
+class Hydrate : public TamaState {
+public:
+  Hydrate() : _bowl("", -1) {}
+  Hydrate(std::string assetsDirectory, Water waterBowl) : _bowl(waterBowl) {
+    std::string path = assetsDirectory + "walking/walking.png";
+    Image img = LoadImage(path.c_str());
+
+    for (int x = 0; x < img.width; x += 24.0f) {
+      Rectangle frame =
+          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
+
+      Image partImage = ImageFromImage(img, frame);
+      _texturesRight.push_back(LoadTextureFromImage(partImage));
+
+      ImageFlipHorizontal(&partImage);
+      _texturesLeft.push_back(LoadTextureFromImage(partImage));
+    }
+  }
+
+  virtual void EnterState(Vector2 *position) {
+    _isHunting = true;
+    _position = position;
+    _velocity = (_bowl.Position.x - position->x) > 0 ? 1 : -1;
+  };
+
+  void ExitState() {
+
+  };
+
+  // Called each tick, returns UNSET to signal no transition should occur
+  virtual State Update(long frameCounter) {
+    if (frameCounter % SPEED != 0) {
+      return UNSET;
+    }
+
+    int consumesRemaining = 6;
+    if (std::abs(_bowl.Position.x - _position->x) <= 4) {
+      _isHunting = false;
+      if (_velocity > 0) {
+        consumesRemaining = _bowl.ConsumeFromLeft();
+      } else {
+        consumesRemaining = _bowl.ConsumeFromRight();
+      }
+    } else {
+      _position->x += _velocity;
+    }
+
+    return consumesRemaining > 0 ? UNSET : IDLE;
+  }
+
+  virtual void Draw() = 0;
+
+private:
+  TamaState *_walking;
+  Vector2 *_position;
+  Water _bowl;
+  int _velocity;
+  bool _isHunting;
 };
 
 #endif

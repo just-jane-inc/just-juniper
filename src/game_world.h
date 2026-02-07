@@ -1,5 +1,10 @@
+#include "constants.h"
 #include "rngesus.h"
 #include <algorithm>
+#include <cstdio>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -57,24 +62,93 @@ private:
   Rectangle _window;
 };
 
-class Food {
+class Consumable {
 public:
   Vector2 Position;
+  std::vector<Texture2D> _leftAnimation;
+  std::vector<Texture2D> _rightAnimation;
 
-  Food(std::string assetsDirectory, Vector2 position) {
+  int ConsumeFromRight() {
+    _fromRight = true;
+    _count += 1;
+    return std::max((int)_rightAnimation.size() - _count, 0);
+  };
+
+  int ConsumeFromLeft() {
+    _fromRight = false;
+    _count += 1;
+    return std::max((int)_leftAnimation.size() - _count, 0);
+  };
+
+  void Draw() {
+    if (_count >= _leftAnimation.size() - 1) {
+      return;
+    }
+
+    Texture2D frame;
+    if (_fromRight) {
+      frame = _rightAnimation[_count];
+    } else {
+      frame = _leftAnimation[_count];
+    }
+
+    DrawTextureEx(frame, Position, 0, 1.0f, WHITE);
+  }
+
+private:
+  int _count = 0;
+  bool _fromRight = false;
+};
+
+class Water : public Consumable {
+public:
+  Water(std::string assetsDirectory, float x) {
+    Position = {.x = x, .y = 14};
+    std::string path = assetsDirectory + "/water-bowl/water-bowl.png";
+    Image img = LoadImage(path.c_str());
+
+    // we require that food have 6 animation frames for the water
+    float frame_width = (float)img.width / 6;
+
+    for (int x = 0; x < img.width; x += frame_width) {
+      Rectangle frame = Rectangle{
+          .x = (float)x,
+          .y = 0,
+          .width = (float)frame_width,
+          .height = (float)img.height};
+
+      Image partImage = ImageFromImage(img, frame);
+      _rightAnimation.push_back(LoadTextureFromImage(partImage));
+
+      ImageFlipHorizontal(&partImage);
+      _leftAnimation.push_back(LoadTextureFromImage(partImage));
+    }
+  }
+};
+
+class Food : public Consumable {
+public:
+  Food(std::string assetsDirectory, float x) {
     std::vector<std::string> foods;
-    foods.push_back(assetsDirectory + "food/gold_apple.png");
     foods.push_back(assetsDirectory + "food/apple.png");
+    foods.push_back(assetsDirectory + "food/blueberry.png");
     foods.push_back(assetsDirectory + "food/cookie.png");
 
     std::string path = RandomChoice(foods);
 
     Image img = LoadImage(path.c_str());
 
+    // we require that food have 8 animation frames that represent
+    // being eaten from the left.
+    float frame_width = (float)img.width / 8;
+
     // 67 - Mr_Autio
-    for (int x = 0; x < img.width; x += 8.0f) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 8.0f, .height = 24};
+    for (int x = 0; x < img.width; x += frame_width) {
+      Rectangle frame = Rectangle{
+          .x = (float)x,
+          .y = 0,
+          .width = (float)frame_width,
+          .height = (float)img.height};
 
       Image partImage = ImageFromImage(img, frame);
       _rightAnimation.push_back(LoadTextureFromImage(partImage));
@@ -83,41 +157,8 @@ public:
       _leftAnimation.push_back(LoadTextureFromImage(partImage));
     }
 
-    Position = position;
-    _chomps = 0;
+    Position = {x, TamaConstant::SCREEN_FLOOR - 16.0};
   }
-
-  int ChompFromRight() {
-    _fromRight = true;
-    _chomps += 1;
-    return std::max((int)_leftAnimation.size() - _chomps, 0);
-  };
-
-  int ChompFromLeft() {
-    _chomps += 1;
-    return std::max((int)_leftAnimation.size() - _chomps, 0);
-  };
-
-  void Draw() {
-    if (_chomps >= _leftAnimation.size() - 1) {
-      return;
-    }
-
-    Texture2D frame;
-    if (_fromRight) {
-      frame = _rightAnimation[_chomps];
-    } else {
-      frame = _leftAnimation[_chomps];
-    }
-
-    DrawTextureEx(frame, Position, 0, 2.0f, WHITE);
-  }
-
-private:
-  std::vector<Texture2D> _leftAnimation;
-  std::vector<Texture2D> _rightAnimation;
-  int _chomps;
-  bool _fromRight = false;
 };
 
 class GameWorld {
@@ -129,17 +170,85 @@ public:
 class UserInput {
 public:
   UserInput() {
-    _headpatButton = Rectangle{.x = 65, .y = 306, .width = 12, .height = 12};
+    _leftButton = MakeButton(TamaConstant::LEFT_BUTTON_POS);
+    _centerButton = MakeButton(TamaConstant::CENTER_BUTTON_POS);
+    _rightButton = MakeButton(TamaConstant::RIGHT_BUTTON_POS);
   }
 
-  bool CheckForHeadpat() {
+  TamaEvent CheckForInput() {
     Vector2 mousePoint = GetMousePosition();
-    return IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
-           CheckCollisionPointRec(mousePoint, _headpatButton);
+    if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+      return EVENT_UNSET;
+    }
+
+    if (CheckCollisionPointRec(mousePoint, _centerButton)) {
+      return EVENT_HEADPAT;
+    }
+
+    if (CheckCollisionPointRec(mousePoint, _leftButton)) {
+      return EVENT_HYDRATE;
+    }
+
+    if (CheckCollisionPointRec(mousePoint, _rightButton)) {
+      return EVENT_FOOD;
+    }
+
+    return EVENT_UNSET;
   }
 
 private:
-  Rectangle _headpatButton;
+  Rectangle MakeButton(Vector2 position) {
+    return {
+        .x = position.x,
+        .y = position.y,
+        .width = TamaConstant::BUTTON_SIZE,
+        .height = TamaConstant::BUTTON_SIZE,
+    };
+  }
+
+  Rectangle _leftButton;
+  Rectangle _centerButton;
+  Rectangle _rightButton;
+};
+
+class DisplayClock {
+public:
+  DisplayClock() {
+    _font = LoadFontEx(
+        "/home/jane/just-stream/just-ray-bahms/just-juniper/assets/font.ttf",
+        32,
+        NULL,
+        0);
+    time_t t = time(NULL);
+    _time = localtime(&t);
+  }
+
+  void Update(long frameCounter) {
+    if (frameCounter % 60 == 0) {
+      time_t t = time(NULL);
+      _time = localtime(&t);
+    }
+  }
+
+  void Draw() {
+    std::stringstream ss;
+    char buffer[6];
+    std::strftime(buffer, sizeof(buffer), "%H:%M", _time);
+
+    DrawTextEx(
+        _font,
+        buffer,
+        {.x = TamaConstant::CLOCK_POSITION.x,
+         .y = TamaConstant::CLOCK_POSITION.y},
+        TamaConstant::CLOCK_FONT_SIZE,
+        2,
+        BLACK);
+  }
+
+private:
+  Font _font;
+  long _counter;
+  struct tm *_time;
 };
 
 #endif

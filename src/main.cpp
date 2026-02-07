@@ -1,5 +1,6 @@
 #include "raylib.h"
 
+#include "constants.h"
 #include "cookie.h"
 #include "tama.h"
 
@@ -21,17 +22,14 @@ std::unordered_map<std::string, TamaEvent> EVENT_MAP = {
 
 #define TRANSPARENT CLITERAL(Color){0x00, 0x00, 0x00, 0x00}
 
-#define WINDOW_HEIGHT 384.0
-#define WINDOW_WIDTH 216.0
-
-void headpat_listener(std::queue<TamaEvent> eventQueue) {
+void headpat_listener(std::queue<TamaEvent> *eventQueue) {
   try {
     char *uri = std::getenv("REDIS_CONNECTION_STRING");
     sw::redis::Redis redis(uri);
     auto sub = redis.subscriber();
 
     sub.on_message([&eventQueue](std::string channel, std::string msg) {
-      eventQueue.push(EVENT_MAP[channel]);
+      eventQueue->push(EVENT_MAP[channel]);
     });
 
     sub.subscribe("juniper/redeems/headpat");
@@ -57,49 +55,54 @@ void headpat_listener(std::queue<TamaEvent> eventQueue) {
 int main() {
   Color screen = {0xad, 0xe0, 0xcf, 0xff};
   SetConfigFlags(FLAG_WINDOW_TRANSPARENT | FLAG_WINDOW_ALWAYS_RUN);
-  InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "just-tamagotchi");
+  InitWindow(
+      TamaConstant::WINDOW_WIDTH,
+      TamaConstant::WINDOW_HEIGHT,
+      "just-tamagotchi");
   SetTargetFPS(60);
 
-  Rectangle gameZone =
-      Rectangle{.x = 48, .y = 121, .width = 120, .height = 142};
+  Rectangle gameZone = Rectangle{
+      .x = TamaConstant::SCREEN_X,
+      .y = TamaConstant::SCREEN_Y,
+      .width = TamaConstant::SCREEN_WIDTH,
+      .height = TamaConstant::SCREEN_HEIGHT};
+
   Tama tama = Tama(gameZone, "juniper");
-  Image cookieImage = LoadImage("/home/jane/just-stream/just-ray-bahms/"
-                                "just-juniper/assets/cookie.png");
+  Image cookieImage = LoadImage(
+      "/home/jane/just-stream/just-ray-bahms/"
+      "just-juniper/assets/cookie.png");
   int animationStep = 0;
 
   Image egg = LoadImage(
-      "/home/jane/just-stream/just-ray-bahms/just-juniper/assets/egg.png");
+      "/home/jane/just-stream/just-ray-bahms/just-juniper/assets/juniper/"
+      "egg.png");
 
-  Image bottleImg =
-      LoadImage("/home/jane/just-stream/just-ray-bahms/just-juniper/"
-                "assets/water-bottle.png");
   Texture2D bg = LoadTextureFromImage(egg);
-  Texture2D bottle = LoadTextureFromImage(bottleImg);
-
-  Lightning bolt = Lightning(gameZone);
 
   int count = 0;
 
   int blah;
-  std::thread sub_thread(headpat_listener, tama.eventQueue);
+  std::thread sub_thread(headpat_listener, &tama.eventQueue);
   std::this_thread::sleep_for(std::chrono::seconds(1));
   UserInput uinput = UserInput();
+
+  DisplayClock clock;
 
   while (!WindowShouldClose()) {
     count += 1;
     tama.Update();
-    if (uinput.CheckForHeadpat()) {
-      tama.eventQueue.push(EVENT_HEADPAT);
+    clock.Update(count);
+    TamaEvent e = uinput.CheckForInput();
+    if (e != EVENT_UNSET) {
+      tama.eventQueue.push(e);
     }
 
     BeginDrawing();
     ClearBackground(TRANSPARENT);
-
-    DrawTexture(bg, 0, 0, WHITE);
-    DrawTexture(bottle, gameZone.x + gameZone.width - bottle.width, gameZone.y,
-                WHITE);
+    DrawTextureEx(bg, {0.0, 0.0}, 0.0, 1.0, WHITE);
 
     tama.Draw();
+    clock.Draw();
     EndDrawing();
   }
 
