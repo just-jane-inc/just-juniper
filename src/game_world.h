@@ -66,17 +66,18 @@ public:
   std::vector<Texture2D> _leftAnimation;
   std::vector<Texture2D> _rightAnimation;
 
-  int ConsumeFromRight() {
-    _fromRight = true;
-    _count += 1;
-    return std::max((int)_rightAnimation.size() - _count, 0);
-  };
-
-  int ConsumeFromLeft() {
-    _fromRight = false;
-    _count += 1;
-    return std::max((int)_leftAnimation.size() - _count, 0);
-  };
+  int Consume(Vector2 pos) {
+    // if the position of the character is greater then the food
+    // the character is to the right of the food and should
+    // be consuming from left (it is facing left)
+    if (pos.x > Position.x) {
+      _fromRight = false;
+      return std::max((int)_leftAnimation.size() - _count, 0);
+    } else {
+      _fromRight = true;
+      return std::max((int)_rightAnimation.size() - _count, 0);
+    }
+  }
 
   void Draw() {
     if (_count >= _leftAnimation.size() - 1) {
@@ -131,6 +132,7 @@ public:
     foods.push_back(assetsDirectory + "food/apple.png");
     foods.push_back(assetsDirectory + "food/blueberry.png");
     foods.push_back(assetsDirectory + "food/cookie.png");
+    foods.push_back(assetsDirectory + "food/carrot.png");
 
     std::string path = RandomChoice(foods);
 

@@ -14,50 +14,46 @@
 
 using namespace sw::redis;
 
-std::unordered_map<std::string, TamaEvent> EVENT_MAP = {
-    {"juniper/redeems/headpat", EVENT_HEADPAT},
-    {"juniper/redeems/hydrate", EVENT_HYDRATE},
-};
-
 #define TRANSPARENT CLITERAL(Color){0x00, 0x00, 0x00, 0x00}
 
-void headpat_listener(std::queue<TamaEvent> *eventQueue) {
-  try {
-    char *uri = std::getenv("REDIS_CONNECTION_STRING");
-    sw::redis::Redis redis(uri);
-    auto sub = redis.subscriber();
+void stdin_listener(std::queue<TamaEvent> *eventQueue) {
+  // map of strings expected over stdin to the enum values associated to those
+  // strings
+  std::unordered_map<std::string, TamaEvent> eventMap = {
+      {"headpat", EVENT_HEADPAT},
+      {"hydrate", EVENT_HYDRATE},
+      {"food", EVENT_FOOD},
+  };
 
-    sub.on_message([&eventQueue](std::string channel, std::string msg) {
-      eventQueue->push(EVENT_MAP[channel]);
-    });
+  // we are just going to block on stdin in this function which is called in a
+  // bg thread.
+  while (true) {
+    std::string line;
+    std::getline(std::cin, line);
 
-    sub.subscribe("juniper/redeems/headpat");
-    sub.subscribe("juniper/redeems/hydrate");
-
-    bool wtf = false;
-    while (true) {
-      try {
-        sub.consume();
-      } catch (const Error &err) {
-        std::cerr << "Error in subscriber consume loop: " << err.what()
-                  << std::endl;
-        // Handle exceptions, possibly with a reconnection strategy
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-      }
+    if (eventMap.find(line) == eventMap.end()) {
+      // whatever came over stdin as not valid
+      continue;
     }
-  } catch (const Error &err) {
-    std::cerr << "Redis connection error in subscriber thread: " << err.what()
-              << std::endl;
+
+    // push the mapped event onto the queue so that it can be accessed
+    // from tama
+    eventQueue->push(eventMap[line]);
   }
 }
 
 int main() {
-  Color screen = {0xad, 0xe0, 0xcf, 0xff};
+  // the borders of windows are transparent for me so that it looks nicer
+  // on stream. The always run flag is used to ensure that the game loop
+  // executes while the application is minimized, this window is almost always
+  // minimized.
   SetConfigFlags(FLAG_WINDOW_TRANSPARENT | FLAG_WINDOW_ALWAYS_RUN);
+
   InitWindow(
       TamaConstant::WINDOW_WIDTH,
       TamaConstant::WINDOW_HEIGHT,
       "just-tamagotchi");
+
   SetTargetFPS(60);
 
   Rectangle gameZone = Rectangle{
@@ -71,13 +67,12 @@ int main() {
 
   std::string path = std::string(ASSETS_PATH) + "/juniper/egg.png";
   Image egg = LoadImage(path.c_str());
-
   Texture2D bg = LoadTextureFromImage(egg);
 
   int count = 0;
 
   int blah;
-  std::thread sub_thread(headpat_listener, &tama.eventQueue);
+  std::thread stdin_event_thread(stdin_listener, &tama.eventQueue);
   std::this_thread::sleep_for(std::chrono::seconds(1));
   UserInput uinput = UserInput();
 
@@ -87,6 +82,10 @@ int main() {
     count += 1;
     tama.Update();
     clock.Update(count);
+
+    // check if the application has received
+    // input from a button press, add events
+    // to the event queue.
     TamaEvent e = uinput.CheckForInput();
     if (e != EVENT_UNSET) {
       tama.eventQueue.push(e);
@@ -103,8 +102,8 @@ int main() {
 
   CloseWindow();
 
-  if (sub_thread.joinable()) {
-    sub_thread.join();
+  if (stdin_event_thread.joinable()) {
+    stdin_event_thread.join();
   }
 
   return 0;

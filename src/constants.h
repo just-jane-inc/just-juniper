@@ -26,4 +26,7 @@ constexpr Vector2 RIGHT_BUTTON_POS = {.x = 132, .y = 185};
 constexpr Vector2 CLOCK_POSITION = {.x = 122, .y = 55};
 constexpr int CLOCK_FONT_SIZE = 20;
 
+// tama size
+constexpr Vector2 TAMA_SIZE = {.x = 24, .y = 24};
+
 } // namespace TamaConstant

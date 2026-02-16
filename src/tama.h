@@ -11,6 +11,11 @@ public:
   std::string name;
   TamaState *currentState;
 
+  /**
+   * @brief Instatiate tama.
+   * @param gameArea the part of the screen that is valid for the character
+   * @param name the name of the character (used to navigatae assets directory)
+   */
   Tama(Rectangle gameArea, std::string name) {
     _gameArea = gameArea;
 
