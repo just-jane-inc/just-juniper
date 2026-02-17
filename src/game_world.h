@@ -67,6 +67,8 @@ public:
   std::vector<Texture2D> _rightAnimation;
 
   int Consume(Vector2 pos) {
+    _count += 1;
+
     // if the position of the character is greater then the food
     // the character is to the right of the food and should
     // be consuming from left (it is facing left)

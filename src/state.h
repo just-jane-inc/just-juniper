@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -99,7 +100,6 @@ public:
 
   void Draw() {
     int idx = counter % _texturesRight.size();
-
     if (_velocity > 0) {
       DrawTama(_texturesRight[idx], _position);
     } else {
@@ -200,9 +200,15 @@ public:
     state = EATING;
     _assetsDirectory = assetsDirectory;
 
-    // the eating state needs to manage tama walking to food
-    // as well as eating that food. for this she has two sets
-    // of animations thata we load in here.
+    // The eating state maintains two internal states and should likely
+    // be reworked slightly. The first internal state is the hunting/seeking
+    // state where juniper walks in the direction of food. This is followed
+    // by an internal eating state where she actually calls Consume on food.
+    //
+    // This could, and probably should, be reworked to literally be two
+    // distinct states or to just cleanup how the swap occurrs. Note
+    // that most of the oddities of this state stem from this choice
+    // to internally encode two distinct behaviors in one state.
     std::string path = assetsDirectory + "eating/eating.png";
     Image img = LoadImage(path.c_str());
     for (int x = 0; x < img.width; x += 24.0f) {
@@ -231,13 +237,13 @@ public:
   }
 
   void EnterState(Vector2 *position) {
-    _counter = 0;
+    _eatingAnimationCounter = 0;
+    _walkingAnimationCounter = 0;
     _position = position;
 
     // figure out if juniper is on left or right side of screen,
     // spawn food on opposite side, walk toward it then eat
-    bool right = _position->x
-                 > (TamaConstant::SCREEN_WIDTH / 2.0f);
+    bool right = _position->x > (TamaConstant::SCREEN_WIDTH / 2.0f);
 
     float foodx;
     // spawn food on the opposite side of the screen, if juniper
@@ -255,35 +261,35 @@ public:
   }
 
   void ExitState() {
-    _counter = 0;
-    _velocity = 0;
+    _walkingAnimationCounter = 0;
+    _eatingAnimationCounter = 0;
     delete _food;
   }
 
   State Update(long frameCounter) {
-    if (frameCounter % SPEED == 0) {
-      _counter += 1;
-    } else { // we only want to update on certain frames
+    if (frameCounter % SPEED != 0) {
       return UNSET;
     }
 
-    bool right = IsFacingRight();
-    bool isEating = IsEating();
+    if (IsEating()) {
+      _eatingAnimationCounter += 1;
 
-    if (isEating) {
-      // NO IDEA WHAT THIS IS WTF?
-      if (_counter <= 7) {
+      // This is using forbidden knowledge about the animation.
+      // At the eating animation frame we want to state consuming the food item.
+      // this is brittle, will break, and should be done away with.
+      if (_eatingAnimationCounter < 7) {
         return UNSET;
       }
 
-      if (_food->Consume(*_position)) {
+      if (_food->Consume(*_position) <= 0) {
         return Flip(0.5) ? IDLE : WALKING;
       }
 
       return UNSET;
     }
 
-    if (right) {
+    _walkingAnimationCounter += 1;
+    if (IsFacingRight()) {
       _position->x += 2;
     } else {
       _position->x -= 2;
@@ -293,23 +299,20 @@ public:
   }
 
   virtual void Draw() {
-    // right is the direction the juniper is facing
     bool right = IsFacingRight();
-    bool isEating = IsEating();
-
     Texture2D tama;
 
-    if (isEating) {
-      if (right) {
-        tama = _texturesRight[_counter % _texturesRight.size()];
+    if (IsEating()) {
+      if (IsFacingRight()) {
+        tama = _texturesRight[_eatingAnimationCounter % _texturesRight.size()];
       } else {
-        tama = _texturesLeft[_counter % _texturesRight.size()];
+        tama = _texturesLeft[_eatingAnimationCounter % _texturesLeft.size()];
       }
     } else {
-      if (right) {
-        tama = _walkingRight[_counter % _walkingRight.size()];
+      if (IsFacingRight()) {
+        tama = _walkingRight[_walkingAnimationCounter % _walkingRight.size()];
       } else {
-        tama = _walakingLeft[_counter % _walakingLeft.size()];
+        tama = _walakingLeft[_walkingAnimationCounter % _walakingLeft.size()];
       }
     }
 
@@ -324,27 +327,28 @@ private:
   bool IsFacingRight() { return _position->x - _food->Position.x < 0; }
 
   bool IsEating() {
-    bool right = IsFacingRight();
-    bool isEating;
+    int distance;
 
-    if (right) {
-      int distance =
-          _food->Position.x - _position->x - (_walkingRight[0].width * 2);
-      isEating = std::abs(distance) <= 4;
+    if (IsFacingRight()) {
+      distance =
+          _food->Position.x - (_position->x + (_walkingRight[0].width * 2));
     } else {
-      isEating = std::abs(_food->Position.x - _position->x) <= 4;
+      distance = _position->x - _food->Position.x;
     }
 
-    return isEating;
+    return distance <= 8;
   }
 
+  std::string _assetsDirectory;
   std::vector<Texture2D> _walkingRight;
   std::vector<Texture2D> _walakingLeft;
+
   Vector2 *_position;
-  int _counter;
   float _velocity;
-  std::string _assetsDirectory;
+
   Food *_food;
+  int _walkingAnimationCounter;
+  int _eatingAnimationCounter;
 };
 
 class Sleeping : public TamaState {
