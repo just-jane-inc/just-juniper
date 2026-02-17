@@ -236,8 +236,8 @@ public:
 
     // figure out if juniper is on left or right side of screen,
     // spawn food on opposite side, walk toward it then eat
-    bool right = (_position->x / TamaConstant::TAMA_SIZE.x)
-                 > TamaConstant::WINDOW_WIDTH / 2.0f;
+    bool right = (_position->x)
+                 > TamaConstant::SCREEN_WIDTH / 2.0f;
 
     float foodx;
     // spawn food on the opposite side of the screen, if juniper
