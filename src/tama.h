@@ -36,11 +36,12 @@ public:
   }
 
   void Update() {
+    _frameCounter += 1;
     State nextState = currentState->Update(_frameCounter);
 
-    if (eventQueue.size() > 0) {
-      TamaEvent e = eventQueue.front();
-      eventQueue.pop();
+    TamaEvent e = EVENT_UNSET;
+    if (nextState == UNSET && eventQueue.size() > 0) {
+      e = eventQueue.front();
       switch (e) {
       case EVENT_UNSET:
       case EVENT_HYDRATE:
@@ -56,40 +57,43 @@ public:
 
     // if the next state is unset we do not transition this frame
     if (nextState != UNSET) {
-      this->Transition(nextState);
+      if(this->Transition(nextState) && e != EVENT_UNSET){
+        eventQueue.pop();        
+      }
     }
-
-    _frameCounter += 1;
-    currentState->Update(_frameCounter);
   }
 
   void Draw() { currentState->Draw(); }
 
-  void Transition(State nextState) {
-    currentState->ExitState();
-    switch (nextState) {
-    case UNSET:
-      break;
-    case IDLE:
-      currentState = &this->_idleState;
-      break;
-    case WALKING:
-      currentState = &this->_walkingState;
-      break;
-    case SLEEPING:
-      currentState = &this->_sleepState;
-      break;
-    case EATING:
-      currentState = &this->_eating;
-      break;
-    case HEADPAT:
-      currentState = &this->_headPatState;
-      break;
-    case HYDRATE:
-      break;
-    }
+  bool Transition(State nextState) {
+    if(currentState->TryExitState(nextState))
+    {
+      switch (nextState) {
+      case UNSET:
+        break;
+      case IDLE:
+        currentState = &this->_idleState;
+        break;
+      case WALKING:
+        currentState = &this->_walkingState;
+        break;
+      case SLEEPING:
+        currentState = &this->_sleepState;
+        break;
+      case EATING:
+        currentState = &this->_eating;
+        break;
+      case HEADPAT:
+        currentState = &this->_headPatState;
+        break;
+      case HYDRATE:
+        break;
+      }
 
-    currentState->EnterState(&_position);
+      currentState->EnterState(&_position);
+      return true;
+    }
+    return false;
   }
 
 private:
