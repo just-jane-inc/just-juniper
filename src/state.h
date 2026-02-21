@@ -36,6 +36,10 @@ public:
 
   virtual void ExitState() = 0;
 
+  virtual bool BlockTransition() {
+    return false;
+  }
+
   /**
    * @brief provides state opportunity to preform its updates. returns UNSET
    * to signal no transition should occur (stay in this state) otherwise
@@ -237,6 +241,7 @@ public:
   }
 
   void EnterState(Vector2 *position) {
+    _dined = false;
     _eatingAnimationCounter = 0;
     _walkingAnimationCounter = 0;
     _position = position;
@@ -266,6 +271,10 @@ public:
     delete _food;
   }
 
+  bool BlockTransition() {
+    return !_dined;
+  }
+
   State Update(long frameCounter) {
     if (frameCounter % SPEED != 0) {
       return UNSET;
@@ -282,6 +291,7 @@ public:
       }
 
       if (_food->Consume(*_position) <= 0) {
+        _dined = true;
         return Flip(0.5) ? IDLE : WALKING;
       }
 
@@ -349,6 +359,7 @@ private:
   Food *_food;
   int _walkingAnimationCounter;
   int _eatingAnimationCounter;
+  bool _dined;
 };
 
 class Sleeping : public TamaState {
@@ -449,9 +460,14 @@ public:
   void EnterState(Vector2 *position) {
     _position = *position;
     _counter = 0;
+    _headpatCeremonyComplete = false;
   }
 
   void ExitState() {}
+
+  bool BlockTransition() {
+    return !_headpatCeremonyComplete;
+  }
 
   State Update(long frameCounter) {
     if (frameCounter % SPEED == 0) {
@@ -461,6 +477,7 @@ public:
     }
 
     if (_counter >= 32) {
+      _headpatCeremonyComplete = true;
       return Flip(0.20) ? WALKING : IDLE;
     }
 
@@ -474,6 +491,7 @@ public:
 private:
   Vector2 _position;
   int _counter;
+  bool _headpatCeremonyComplete;
 };
 
 class Hydrate : public TamaState {
@@ -501,9 +519,7 @@ public:
     _velocity = (_bowl.Position.x - position->x) > 0 ? 1 : -1;
   };
 
-  void ExitState() {
-
-  };
+  void ExitState() {}
 
   // Called each tick, returns UNSET to signal no transition should occur
   virtual State Update(long frameCounter) {

@@ -36,9 +36,10 @@ public:
   }
 
   void Update() {
+    _frameCounter += 1;
     State nextState = currentState->Update(_frameCounter);
 
-    if (eventQueue.size() > 0) {
+    if (nextState == UNSET && eventQueue.size() > 0 && !currentState->BlockTransition()) {
       TamaEvent e = eventQueue.front();
       eventQueue.pop();
       switch (e) {
@@ -58,9 +59,6 @@ public:
     if (nextState != UNSET) {
       this->Transition(nextState);
     }
-
-    _frameCounter += 1;
-    currentState->Update(_frameCounter);
   }
 
   void Draw() { currentState->Draw(); }
