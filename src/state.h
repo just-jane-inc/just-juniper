@@ -12,7 +12,7 @@
 #define FLOOR_Y 24
 
 const int SPEED = 16;
-enum State { UNSET, IDLE, WALKING, SLEEPING, EATING, HEADPAT, HYDRATE };
+enum State { UNSET, IDLE, WALKING, SLEEPING, EATING, HEADPAT, HYDRATE, GAME };
 
 void DrawTama(Texture2D texture, Vector2 position);
 
@@ -549,4 +549,221 @@ private:
   Water _bowl;
   int _velocity;
   bool _isHunting;
+};
+
+class Game : public TamaState {
+public:
+  Game() {}
+
+  Game(std::string assetsDirectory) {
+    state = GAME;
+    _assetsDirectory = assetsDirectory;
+
+    std::string path = assetsDirectory + "idle/idle.png";
+    Image img = LoadImage(path.c_str());
+    for (int x = 0; x < img.width; x += 24.0f) {
+      Rectangle frame =
+          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
+
+      Image partImage = ImageFromImage(img, frame);
+      _texturesRight.push_back(LoadTextureFromImage(partImage));
+
+      // Unused for now...
+      // ImageFlipHorizontal(&partImage);
+      // _texturesLeft.push_back(LoadTextureFromImage(partImage));
+    }
+
+    path = assetsDirectory + "game/friend.png";
+    img = LoadImage(path.c_str());
+    for (int x = 0; x < img.width; x += 24.0f) {
+      Rectangle frame =
+          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
+
+      Image partImage = ImageFromImage(img, frame);
+      ImageFlipHorizontal(&partImage);
+      _friend.push_back(LoadTextureFromImage(partImage));
+    }
+
+    path = assetsDirectory + "game/count.png";
+    img = LoadImage(path.c_str());
+    for (int x = 0; x < img.width; x += 24.0f) {
+      Rectangle frame =
+          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
+
+      Image partImage = ImageFromImage(img, frame);
+      _count.push_back(LoadTextureFromImage(partImage));
+    }
+
+    path = assetsDirectory + "game/rps.png";
+    img = LoadImage(path.c_str());
+    for (int x = 0; x < img.width; x += 24.0f) {
+      Rectangle frame =
+          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
+
+      Image partImage = ImageFromImage(img, frame);
+      _rps.push_back(LoadTextureFromImage(partImage));
+    }
+
+    path = assetsDirectory + "game/victory_heart.png";
+    img = LoadImage(path.c_str());
+    for (int x = 0; x < img.width; x += 8.0f) {
+      Rectangle frame =
+          Rectangle{.x = (float)x, .y = 0, .width = 8.0f, .height = 8.0f};
+
+      Image partImage = ImageFromImage(img, frame);
+      _victoryHeart.push_back(LoadTextureFromImage(partImage));
+    }
+  }
+
+  void EnterState(Vector2 *position) {
+    _complete = false;
+    _idleCounter = 0;
+    _countAnimationCounter = 0;
+    _throwAnimationCounter = 0;
+    _position = position;
+    _tamaChoice = RNG(0,3);
+    _friendChoice = RNG(0,3);
+  }
+
+  bool TryExitState(State next) {
+    if(!_complete){
+      return false;
+    } 
+    _countAnimationCounter = 0;
+    _throwAnimationCounter = 0;
+    return true;
+  }
+
+  State Update(long frameCounter) {
+    if (frameCounter % SPEED != 0) {
+      return UNSET;
+    }
+
+    _idleCounter += 1;
+
+    if (_throwAnimationCounter > 12) {
+      _complete = true;
+      return Flip(0.5) ? IDLE : WALKING;
+    }
+
+    if (IsCounting()) {
+      _countAnimationCounter += 1;
+    } else {
+      _throwAnimationCounter += 1;
+    }
+
+    return UNSET;
+  }
+
+  virtual void Draw() {
+    Texture2D tama;
+    Vector2 tamaPositionDuringGame = Vector2 {
+      .x = TamaConstant::SCREEN_X + 10.0,
+      .y = TamaConstant::SCREEN_Y + 10.0
+    };
+
+    tama = _texturesRight[_idleCounter % _texturesRight.size()];
+    DrawTama(tama, tamaPositionDuringGame);    
+
+    Texture2D playmate = _friend[_idleCounter % _friend.size()];
+    Vector2 friendPostion = tamaPositionDuringGame;
+    friendPostion.x += 72.0;
+    DrawTama(playmate, friendPostion);
+
+
+    if (IsCounting()){      
+      Texture2D count = _count[GetCountFrame() % _count.size()];     
+      DrawTama(count, tamaPositionDuringGame);
+      DrawTama(count, friendPostion);
+    } else {    
+      const float throwMargin = 6.0;
+      Vector2 throwPosition = tamaPositionDuringGame;
+      throwPosition.y -= throwMargin;
+      Texture2D tamaChoice = _rps[_tamaChoice % _rps.size()];     
+      DrawTama(tamaChoice, throwPosition);
+
+      if (_throwAnimationCounter > 5 && GetOutcome() == Outcome::WIN) {
+        Texture2D heart = _victoryHeart[0];
+        Vector2 heartPosition = tamaPositionDuringGame;
+        heartPosition.y += _throwAnimationCounter - 6;
+        DrawTama(heart, heartPosition);        
+      }
+
+      throwPosition = friendPostion;
+      throwPosition.y -= throwMargin;
+      Texture2D friendChoice = _rps[_friendChoice % _rps.size()];
+      DrawTama(friendChoice, throwPosition);
+
+      if (_throwAnimationCounter > 5 && GetOutcome() == Outcome::LOSE) {
+        Texture2D heart = _victoryHeart[0];
+        Vector2 heartPosition = friendPostion;
+        heartPosition.y += _throwAnimationCounter - 6;
+        DrawTama(heart, heartPosition);        
+      }
+    }
+  }
+
+private:
+  bool IsCounting() {
+    // Count by 2s
+    return _countAnimationCounter < 6;
+  }
+
+  int GetCountFrame() {
+    return _countAnimationCounter / 2;
+  }
+
+  enum Outcome { WIN, LOSE, DRAW };
+  Outcome GetOutcome() {
+    Outcome _outcome;
+    if(_tamaChoice == 0) { // Rock
+      if (_friendChoice == 0) { // Rock
+        _outcome = Outcome::DRAW;
+      } else if (_friendChoice == 1) { // Paper
+        _outcome = Outcome::LOSE;
+      } else { // Scissors
+        _outcome = Outcome::WIN;
+      }
+    } else if(_tamaChoice == 1) { // Paper
+      if (_friendChoice == 0) { // Rock
+        _outcome = Outcome::WIN;
+      } else if (_friendChoice == 1) { // Paper
+        _outcome = Outcome::DRAW;
+      } else { // Scissors
+        _outcome = Outcome::LOSE;
+      }
+    } else { // Scissors
+      if (_friendChoice == 0) { // Rock
+        _outcome = Outcome::LOSE;
+      } else if (_friendChoice == 1) { // Paper
+        _outcome = Outcome::WIN;
+      } else { // Scissors
+        _outcome = Outcome::DRAW;
+      }
+    }
+    return _outcome;
+  }
+
+  
+
+  std::string _assetsDirectory;
+  std::vector<Texture2D> _walkingRight;
+  std::vector<Texture2D> _walakingLeft;
+
+  std::vector<Texture2D> _friend;
+  std::vector<Texture2D> _count;
+  std::vector<Texture2D> _rps;
+
+  std::vector<Texture2D> _victoryHeart;
+
+  Vector2 *_position;
+  float _velocity;
+
+  int _idleCounter;
+  int _countAnimationCounter;
+  int _throwAnimationCounter;
+  int _tamaChoice;
+  int _friendChoice;
+  bool _complete;
+  
 };
