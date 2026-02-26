@@ -682,24 +682,24 @@ public:
       Texture2D tamaChoice = _rps[_tamaChoice % _rps.size()];     
       DrawTama(tamaChoice, throwPosition);
 
-      if (_throwAnimationCounter > 5 && GetOutcome() == Outcome::WIN) {
-        Texture2D heart = _victoryHeart[0];
-        Vector2 heartPosition = tamaPositionDuringGame;
-        heartPosition.y += _throwAnimationCounter - 6;
-        DrawTama(heart, heartPosition);        
-      }
+      // if (_throwAnimationCounter > 5 && GetOutcome() == Outcome::WIN) {
+      //   Texture2D heart = _victoryHeart[0];
+      //   Vector2 heartPosition = tamaPositionDuringGame;
+      //   heartPosition.y += _throwAnimationCounter - 6;
+      //   DrawTama(heart, heartPosition);        
+      // }
 
       throwPosition = friendPostion;
       throwPosition.y -= throwMargin;
       Texture2D friendChoice = _rps[_friendChoice % _rps.size()];
       DrawTama(friendChoice, throwPosition);
 
-      if (_throwAnimationCounter > 5 && GetOutcome() == Outcome::LOSE) {
-        Texture2D heart = _victoryHeart[0];
-        Vector2 heartPosition = friendPostion;
-        heartPosition.y += _throwAnimationCounter - 6;
-        DrawTama(heart, heartPosition);        
-      }
+      // if (_throwAnimationCounter > 5 && GetOutcome() == Outcome::LOSE) {
+      //   Texture2D heart = _victoryHeart[0];
+      //   Vector2 heartPosition = friendPostion;
+      //   heartPosition.y += _throwAnimationCounter - 6;
+      //   DrawTama(heart, heartPosition);        
+      // }
     }
   }
 
@@ -716,10 +716,13 @@ private:
   enum Outcome { WIN, LOSE, DRAW };
   Outcome GetOutcome() {
     Outcome _outcome;
+
+    if (_tamaChoice == _friendChoice){
+      return Outcome::DRAW;
+    }
+
     if(_tamaChoice == 0) { // Rock
-      if (_friendChoice == 0) { // Rock
-        _outcome = Outcome::DRAW;
-      } else if (_friendChoice == 1) { // Paper
+      if (_friendChoice == 1) { // Paper
         _outcome = Outcome::LOSE;
       } else { // Scissors
         _outcome = Outcome::WIN;
@@ -727,18 +730,14 @@ private:
     } else if(_tamaChoice == 1) { // Paper
       if (_friendChoice == 0) { // Rock
         _outcome = Outcome::WIN;
-      } else if (_friendChoice == 1) { // Paper
-        _outcome = Outcome::DRAW;
       } else { // Scissors
         _outcome = Outcome::LOSE;
       }
     } else { // Scissors
       if (_friendChoice == 0) { // Rock
         _outcome = Outcome::LOSE;
-      } else if (_friendChoice == 1) { // Paper
+      } else { // Paper
         _outcome = Outcome::WIN;
-      } else { // Scissors
-        _outcome = Outcome::DRAW;
       }
     }
     return _outcome;
