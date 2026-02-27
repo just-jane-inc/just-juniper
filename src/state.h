@@ -685,8 +685,12 @@ private:
     return _countAnimationCounter / 2;
   }
 
+  bool LessThanThree(int i) {
+    return i <3 /*🦔*/;
+  }
+
   bool IsCounting() {
-    return GetCountFrame() < 3;
+    return LessThanThree(GetCountFrame());
   }
 
   bool IsThrowing() {
