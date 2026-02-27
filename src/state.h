@@ -557,20 +557,15 @@ public:
 
   Game(std::string assetsDirectory) {
     state = GAME;
-    _assetsDirectory = assetsDirectory;
 
     std::string path = assetsDirectory + "idle/idle.png";
     Image img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 24.0f) {
+    for (int x = 0; x < img.width; x += 24) {
       Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
+          Rectangle{.x = (float)x, .y = 0, .width = 24, .height = 24};
 
       Image partImage = ImageFromImage(img, frame);
       _texturesRight.push_back(LoadTextureFromImage(partImage));
-
-      // Unused for now...
-      // ImageFlipHorizontal(&partImage);
-      // _texturesLeft.push_back(LoadTextureFromImage(partImage));
     }
 
     path = assetsDirectory + "game/friend.png";
@@ -586,9 +581,9 @@ public:
 
     path = assetsDirectory + "game/count.png";
     img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 24.0f) {
+    for (int x = 0; x < img.width; x += 24) {
       Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
+          Rectangle{.x = (float)x, .y = 0, .width = 24, .height = 24};
 
       Image partImage = ImageFromImage(img, frame);
       _count.push_back(LoadTextureFromImage(partImage));
@@ -596,9 +591,9 @@ public:
 
     path = assetsDirectory + "game/rps.png";
     img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 24.0f) {
+    for (int x = 0; x < img.width; x += 24) {
       Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
+          Rectangle{.x = (float)x, .y = 0, .width = 24, .height = 24};
 
       Image partImage = ImageFromImage(img, frame);
       _rps.push_back(LoadTextureFromImage(partImage));
@@ -606,9 +601,9 @@ public:
 
     path = assetsDirectory + "game/victory_heart.png";
     img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 8.0f) {
+    for (int x = 0; x < img.width; x += 8) {
       Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 8.0f, .height = 8.0f};
+          Rectangle{.x = (float)x, .y = 0, .width = 8, .height = 8};
 
       Image partImage = ImageFromImage(img, frame);
       _victoryHeart.push_back(LoadTextureFromImage(partImage));
@@ -682,70 +677,51 @@ public:
       Texture2D tamaChoice = _rps[_tamaChoice % _rps.size()];     
       DrawTama(tamaChoice, throwPosition);
 
-      // if (_throwAnimationCounter > 5 && GetOutcome() == Outcome::WIN) {
-      //   Texture2D heart = _victoryHeart[0];
-      //   Vector2 heartPosition = tamaPositionDuringGame;
-      //   heartPosition.y += _throwAnimationCounter - 6;
-      //   DrawTama(heart, heartPosition);        
-      // }
+      Outcome outcome = GetOutcome();
+      if (_throwAnimationCounter > 5 && outcome == Outcome::WIN) {
+        Texture2D heart = _victoryHeart[0];
+        Vector2 heartPosition = tamaPositionDuringGame;
+        heartPosition.x += 30;
+        heartPosition.y -= _throwAnimationCounter - 6;
+        DrawTama(heart, heartPosition);        
+      }
 
       throwPosition = friendPostion;
       throwPosition.y -= throwMargin;
       Texture2D friendChoice = _rps[_friendChoice % _rps.size()];
       DrawTama(friendChoice, throwPosition);
 
-      // if (_throwAnimationCounter > 5 && GetOutcome() == Outcome::LOSE) {
-      //   Texture2D heart = _victoryHeart[0];
-      //   Vector2 heartPosition = friendPostion;
-      //   heartPosition.y += _throwAnimationCounter - 6;
-      //   DrawTama(heart, heartPosition);        
-      // }
+      if (_throwAnimationCounter > 5 && outcome == Outcome::LOSE) {
+        Texture2D heart = _victoryHeart[0];
+        Vector2 heartPosition = friendPostion;
+        heartPosition.y -= _throwAnimationCounter - 6;
+        DrawTama(heart, heartPosition);        
+      }
     }
   }
 
 private:
+  enum class Outcome {
+      DRAW = 0,
+      WIN  = 1,
+      LOSE = 2
+  };
+
   bool IsCounting() {
-    // Count by 2s
     return _countAnimationCounter < 6;
   }
 
   int GetCountFrame() {
+    // I wanted to increase the number of dots
+    // every 2 game ticks
     return _countAnimationCounter / 2;
   }
 
-  enum Outcome { WIN, LOSE, DRAW };
   Outcome GetOutcome() {
-    Outcome _outcome;
-
-    if (_tamaChoice == _friendChoice){
-      return Outcome::DRAW;
-    }
-
-    if(_tamaChoice == 0) { // Rock
-      if (_friendChoice == 1) { // Paper
-        _outcome = Outcome::LOSE;
-      } else { // Scissors
-        _outcome = Outcome::WIN;
-      }
-    } else if(_tamaChoice == 1) { // Paper
-      if (_friendChoice == 0) { // Rock
-        _outcome = Outcome::WIN;
-      } else { // Scissors
-        _outcome = Outcome::LOSE;
-      }
-    } else { // Scissors
-      if (_friendChoice == 0) { // Rock
-        _outcome = Outcome::LOSE;
-      } else { // Paper
-        _outcome = Outcome::WIN;
-      }
-    }
-    return _outcome;
+    // thank you jan!
+    return static_cast<Outcome>((3 + _tamaChoice - _friendChoice) % 3);
   }
 
-  
-
-  std::string _assetsDirectory;
   std::vector<Texture2D> _walkingRight;
   std::vector<Texture2D> _walakingLeft;
 
