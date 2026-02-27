@@ -12,7 +12,7 @@
 #define FLOOR_Y 24
 
 const int SPEED = 16;
-enum State { UNSET, IDLE, WALKING, SLEEPING, EATING, HEADPAT, HYDRATE, GAME };
+enum State { UNSET, IDLE, WALKING, SLEEPING, EATING, HEADPAT, HYDRATE, JANKEN };
 
 void DrawTama(Texture2D texture, Vector2 position);
 
@@ -551,12 +551,12 @@ private:
   bool _isHunting;
 };
 
-class Game : public TamaState {
+class Janken : public TamaState {
 public:
-  Game() {}
+  Janken() {}
 
-  Game(std::string assetsDirectory) {
-    state = GAME;
+  Janken(std::string assetsDirectory) {
+    state = JANKEN;
 
     std::string path = assetsDirectory + "idle/idle.png";
     Image img = LoadImage(path.c_str());
@@ -568,18 +568,18 @@ public:
       _texturesRight.push_back(LoadTextureFromImage(partImage));
     }
 
-    path = assetsDirectory + "game/friend.png";
+    path = assetsDirectory + "janken/friend.png"; // Could be any croco 🐊🕶️
     img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 24.0f) {
+    for (int x = 0; x < img.width; x += 24) {
       Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
+          Rectangle{.x = (float)x, .y = 0, .width = 24, .height = 24};
 
       Image partImage = ImageFromImage(img, frame);
       ImageFlipHorizontal(&partImage);
       _friend.push_back(LoadTextureFromImage(partImage));
     }
 
-    path = assetsDirectory + "game/count.png";
+    path = assetsDirectory + "janken/count.png";
     img = LoadImage(path.c_str());
     for (int x = 0; x < img.width; x += 24) {
       Rectangle frame =
@@ -589,21 +589,21 @@ public:
       _count.push_back(LoadTextureFromImage(partImage));
     }
 
-    path = assetsDirectory + "game/rps.png";
+    path = assetsDirectory + "janken/rps.png";
     img = LoadImage(path.c_str());
     for (int x = 0; x < img.width; x += 24) {
       Rectangle frame =
           Rectangle{.x = (float)x, .y = 0, .width = 24, .height = 24};
 
       Image partImage = ImageFromImage(img, frame);
-      _rps.push_back(LoadTextureFromImage(partImage));
+      _throw.push_back(LoadTextureFromImage(partImage));
     }
 
-    path = assetsDirectory + "game/victory_heart.png";
+    path = assetsDirectory + "janken/victory_heart.png";
     img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 8) {
+    for (int x = 0; x < img.width; x += 9) {
       Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 8, .height = 8};
+          Rectangle{.x = (float)x, .y = 0, .width = 9, .height = 8};
 
       Image partImage = ImageFromImage(img, frame);
       _victoryHeart.push_back(LoadTextureFromImage(partImage));
@@ -611,22 +611,18 @@ public:
   }
 
   void EnterState(Vector2 *position) {
+    _tamaThrowChoice = RNG(0,3);
     _complete = false;
     _idleCounter = 0;
     _countAnimationCounter = 0;
     _throwAnimationCounter = 0;
-    _position = position;
-    _tamaChoice = RNG(0,3);
-    _friendChoice = RNG(0,3);
+    _celebratingCounter = 0;
+    _friendThrowChoice = RNG(0,3);    
+    _outcome = GetOutcome();
   }
 
   bool TryExitState(State next) {
-    if(!_complete){
-      return false;
-    } 
-    _countAnimationCounter = 0;
-    _throwAnimationCounter = 0;
-    return true;
+    return _complete;
   }
 
   State Update(long frameCounter) {
@@ -634,67 +630,83 @@ public:
       return UNSET;
     }
 
-    _idleCounter += 1;
+    _idleCounter += 1; 
 
-    if (_throwAnimationCounter > 12) {
+    if (DoneCelebrating()
+      || GetOutcome() == Outcome::DRAW && DoneThrowing()) {
       _complete = true;
       return Flip(0.5) ? IDLE : WALKING;
     }
 
     if (IsCounting()) {
       _countAnimationCounter += 1;
-    } else {
+    } else if (IsThrowing()) {
       _throwAnimationCounter += 1;
+    } else {
+      _celebratingCounter += 1;
     }
 
     return UNSET;
   }
 
   virtual void Draw() {
-    Texture2D tama;
     Vector2 tamaPositionDuringGame = Vector2 {
       .x = TamaConstant::SCREEN_X + 10.0,
       .y = TamaConstant::SCREEN_Y + 10.0
     };
 
-    tama = _texturesRight[_idleCounter % _texturesRight.size()];
+    Texture2D tama;
+    if (!DoneThrowing() || _outcome == Outcome::WIN) {
+      tama = _texturesRight[_idleCounter % _texturesRight.size()];
+    } else {      
+      // Stay still, you'll get 'em next time
+      tama = _texturesRight[0];
+    }
     DrawTama(tama, tamaPositionDuringGame);    
 
-    Texture2D playmate = _friend[_idleCounter % _friend.size()];
+    Texture2D playmate;     
+    if (!DoneThrowing() || _outcome == Outcome::LOSE) {
+      playmate = _friend[_idleCounter % _friend.size()];
+    } else {      
+      // Stay still loser
+      playmate = _friend[0];
+    }
     Vector2 friendPostion = tamaPositionDuringGame;
     friendPostion.x += 72.0;
     DrawTama(playmate, friendPostion);
 
-
     if (IsCounting()){      
-      Texture2D count = _count[GetCountFrame() % _count.size()];     
+      Texture2D count = _count[GetCountFrame() % _count.size()];
+      // Drawing dots over players  
       DrawTama(count, tamaPositionDuringGame);
       DrawTama(count, friendPostion);
     } else {    
-      const float throwMargin = 6.0;
+      float throwMargin = 6.0;
+      if (IsThrowing()) {
+        // Do a little dance with the objects while they are throwing
+        throwMargin += (_throwAnimationCounter % 2 ? -1.0 : 1.0);
+      }
       Vector2 throwPosition = tamaPositionDuringGame;
       throwPosition.y -= throwMargin;
-      Texture2D tamaChoice = _rps[_tamaChoice % _rps.size()];     
+      Texture2D tamaChoice = _throw[_tamaThrowChoice % _throw.size()];     
       DrawTama(tamaChoice, throwPosition);
-
-      Outcome outcome = GetOutcome();
-      if (_throwAnimationCounter > 5 && outcome == Outcome::WIN) {
+      if (DoneThrowing() && _outcome == Outcome::WIN) {
         Texture2D heart = _victoryHeart[0];
         Vector2 heartPosition = tamaPositionDuringGame;
-        heartPosition.x += 30;
-        heartPosition.y -= _throwAnimationCounter - 6;
+        heartPosition.x += 30; // Scooch it over the tama's head
+        heartPosition.y -= _celebratingCounter - 6; // Over time, it rises
         DrawTama(heart, heartPosition);        
       }
 
       throwPosition = friendPostion;
       throwPosition.y -= throwMargin;
-      Texture2D friendChoice = _rps[_friendChoice % _rps.size()];
+      Texture2D friendChoice = _throw[_friendThrowChoice % _throw.size()];
       DrawTama(friendChoice, throwPosition);
 
-      if (_throwAnimationCounter > 5 && outcome == Outcome::LOSE) {
+      if (DoneThrowing() && _outcome == Outcome::LOSE) {
         Texture2D heart = _victoryHeart[0];
         Vector2 heartPosition = friendPostion;
-        heartPosition.y -= _throwAnimationCounter - 6;
+        heartPosition.y -= _celebratingCounter - 6;
         DrawTama(heart, heartPosition);        
       }
     }
@@ -707,38 +719,50 @@ private:
       LOSE = 2
   };
 
-  bool IsCounting() {
-    return _countAnimationCounter < 6;
-  }
-
   int GetCountFrame() {
     // I wanted to increase the number of dots
     // every 2 game ticks
     return _countAnimationCounter / 2;
   }
 
-  Outcome GetOutcome() {
-    // thank you jan!
-    return static_cast<Outcome>((3 + _tamaChoice - _friendChoice) % 3);
+  bool IsCounting() {
+    return GetCountFrame() < 3;
   }
 
-  std::vector<Texture2D> _walkingRight;
-  std::vector<Texture2D> _walakingLeft;
+  bool IsThrowing() {
+    return _throwAnimationCounter < 6;
+  }
 
-  std::vector<Texture2D> _friend;
-  std::vector<Texture2D> _count;
-  std::vector<Texture2D> _rps;
+  bool DoneThrowing() {
+    return _throwAnimationCounter >= 6;
+  }
 
-  std::vector<Texture2D> _victoryHeart;
+  bool IsCelebrating() {
+    return _celebratingCounter > 0;
+  }
 
-  Vector2 *_position;
-  float _velocity;
+  bool DoneCelebrating() {
+    return _celebratingCounter > 6;
+  }
 
-  int _idleCounter;
-  int _countAnimationCounter;
-  int _throwAnimationCounter;
-  int _tamaChoice;
-  int _friendChoice;
-  bool _complete;
-  
+  Outcome GetOutcome() {
+    // -ˋˏ ༻❁ thank you jan! ❀༺ ˎˊ-
+    // Magic that resolves to the correct outcome based on the player's picks
+    return static_cast<Outcome>((3 + _tamaThrowChoice - _friendThrowChoice) % 3);
+  }
+
+  std::vector<Texture2D> _friend; // 💚
+  std::vector<Texture2D> _count; // dot dot dot
+  std::vector<Texture2D> _throw; // rock paper scissors, in that order
+
+  std::vector<Texture2D> _victoryHeart; // 💜
+
+  int _idleCounter; // Sunshine sunshine, ladybugs awake and do a little shake
+  int _countAnimationCounter; // to count to three with dots
+  int _throwAnimationCounter; // to show what the players pick
+  int _celebratingCounter; // if winner, show victory animation
+  int _tamaThrowChoice;
+  int _friendThrowChoice;
+  bool _complete; 
+  Outcome _outcome;
 };
