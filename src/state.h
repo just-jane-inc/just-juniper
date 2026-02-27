@@ -558,56 +558,16 @@ public:
   Janken(std::string assetsDirectory) {
     state = JANKEN;
 
-    std::string path = assetsDirectory + "idle/idle.png";
-    Image img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 24) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24, .height = 24};
-
-      Image partImage = ImageFromImage(img, frame);
-      _texturesRight.push_back(LoadTextureFromImage(partImage));
-    }
-
-    path = assetsDirectory + "janken/friend.png"; // Could be any croco 🐊🕶️
-    img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 24) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24, .height = 24};
-
-      Image partImage = ImageFromImage(img, frame);
-      ImageFlipHorizontal(&partImage);
-      _friend.push_back(LoadTextureFromImage(partImage));
-    }
-
-    path = assetsDirectory + "janken/count.png";
-    img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 24) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24, .height = 24};
-
-      Image partImage = ImageFromImage(img, frame);
-      _count.push_back(LoadTextureFromImage(partImage));
-    }
-
-    path = assetsDirectory + "janken/rps.png";
-    img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 24) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24, .height = 24};
-
-      Image partImage = ImageFromImage(img, frame);
-      _throw.push_back(LoadTextureFromImage(partImage));
-    }
-
-    path = assetsDirectory + "janken/victory_heart.png";
-    img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 9) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 9, .height = 8};
-
-      Image partImage = ImageFromImage(img, frame);
-      _victoryHeart.push_back(LoadTextureFromImage(partImage));
-    }
+    // juniper idling
+    BufferTextures(_texturesRight, assetsDirectory + "idle/idle.png", 24, 24);
+    // Could be any croco 🐊🕶️
+    BufferTextures(_friend, assetsDirectory + "janken/friend.png", 24, 24, true);
+    // dots
+    BufferTextures(_count, assetsDirectory + "janken/count.png", 24, 24);
+    // throws
+    BufferTextures(_throw, assetsDirectory + "janken/rps.png", 24, 24);
+    // victory heart
+    BufferTextures(_victoryHeart, assetsDirectory + "janken/victory_heart.png", 9, 8);
   }
 
   void EnterState(Vector2 *position) {
@@ -749,6 +709,21 @@ private:
     // -ˋˏ ༻❁ thank you jan! ❀༺ ˎˊ-
     // Magic that resolves to the correct outcome based on the player's picks
     return static_cast<Outcome>((3 + _tamaThrowChoice - _friendThrowChoice) % 3);
+  }
+
+  /* Fill the texture (passed by reference) based on the sprite sheet in the path. */
+  void BufferTextures(std::vector<Texture2D> &textures, std::string path, float width, float height, bool flip_horizonal = false){
+    Image img = LoadImage(path.c_str());
+    for (int x = 0; x < img.width; x += width) {
+      Rectangle frame =
+          Rectangle{.x = (float)x, .y = 0.0f, .width = width, .height = height};
+
+      Image partImage = ImageFromImage(img, frame);
+      if (flip_horizonal) {
+        ImageFlipHorizontal(&partImage);
+      }
+      textures.push_back(LoadTextureFromImage(partImage));
+    }
   }
 
   std::vector<Texture2D> _friend; // 💚
