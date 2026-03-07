@@ -30,6 +30,7 @@ public:
     _sleepState = Sleeping(rootPath);
     _eating = Eating(rootPath);
     _headPatState = Headpat(rootPath);
+    _jankenState = Janken(rootPath);
 
     currentState = &_idleState;
     currentState->EnterState(&_position);
@@ -44,7 +45,9 @@ public:
       e = eventQueue.front();
       switch (e) {
       case EVENT_UNSET:
-      case EVENT_HYDRATE:
+        break;
+      case EVENT_GAME:
+        nextState = JANKEN;
         break;
       case EVENT_HEADPAT:
         nextState = HEADPAT;
@@ -86,6 +89,9 @@ public:
       case HEADPAT:
         currentState = &this->_headPatState;
         break;
+      case JANKEN:
+        currentState = &this->_jankenState;
+        break;
       case HYDRATE:
         break;
       }
@@ -102,6 +108,7 @@ private:
   Eating _eating;
   Walking _walkingState;
   Headpat _headPatState;
+  Janken _jankenState;
 
   Rectangle _gameArea;
   Vector2 _position;

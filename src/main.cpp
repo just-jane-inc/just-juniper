@@ -23,6 +23,7 @@ void stdin_listener(std::queue<TamaEvent> *eventQueue) {
       {"headpat", EVENT_HEADPAT},
       {"hydrate", EVENT_HYDRATE},
       {"food", EVENT_FOOD},
+      {"game", EVENT_GAME},
   };
 
   // we are just going to block on stdin in this function which is called in a

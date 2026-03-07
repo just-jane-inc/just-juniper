@@ -183,12 +183,12 @@ public:
       return EVENT_UNSET;
     }
 
-    if (CheckCollisionPointRec(mousePoint, _centerButton)) {
-      return EVENT_HEADPAT;
+    if (CheckCollisionPointRec(mousePoint, _leftButton)) {
+      return EVENT_GAME;
     }
 
-    if (CheckCollisionPointRec(mousePoint, _leftButton)) {
-      return EVENT_HYDRATE;
+    if (CheckCollisionPointRec(mousePoint, _centerButton)) {
+      return EVENT_HEADPAT;
     }
 
     if (CheckCollisionPointRec(mousePoint, _rightButton)) {

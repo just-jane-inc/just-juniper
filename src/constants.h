@@ -1,7 +1,7 @@
 #pragma once
 #include "raylib.h"
 
-enum TamaEvent { EVENT_UNSET, EVENT_HEADPAT, EVENT_HYDRATE, EVENT_FOOD };
+enum TamaEvent { EVENT_UNSET, EVENT_HEADPAT, EVENT_HYDRATE, EVENT_FOOD, EVENT_GAME };
 
 namespace TamaConstant {
 
