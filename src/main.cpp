@@ -8,11 +8,8 @@
 #include <iostream>
 #include <queue>
 #include <string>
-#include <sw/redis++/redis++.h>
 #include <thread>
 #include <unordered_map>
-
-using namespace sw::redis;
 
 #define TRANSPARENT CLITERAL(Color){0x00, 0x00, 0x00, 0x00}
 

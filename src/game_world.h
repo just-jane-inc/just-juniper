@@ -11,60 +11,13 @@
 
 #include "raylib.h"
 
-class Lightning {
-public:
-  Lightning(Rectangle window) {
-    Vector2 randomStart = Vector2{.x = window.width / 2, .y = 0};
-    _window = window;
-    _currentPosition = randomStart;
-    _corner = Vector2{.x = window.x, .y = window.y};
-
-    // these textures are in face true name brand 2d but not that store brand
-    // kind - toppocatto
-    Image image = GenImageColor(window.width, window.height, BLANK);
-    _bolt = LoadTextureFromImage(image);
-    right = Flip(0.5);
-  }
-
-  bool Update() {
-    if (_currentPosition.y >= _window.height) {
-      return false;
-    }
-
-    if (Flip(0.1)) {
-      right = !right;
-    }
-
-    if (right) {
-      _currentPosition =
-          Vector2{.x = _currentPosition.x + 1, .y = _currentPosition.y + 1};
-    } else {
-      _currentPosition =
-          Vector2{.x = _currentPosition.x - 1, .y = _currentPosition.y + 1};
-    }
-
-    Image image = LoadImageFromTexture(_bolt);
-    ImageDrawPixel(&image, _currentPosition.x, _currentPosition.y, WHITE);
-    UpdateTexture(_bolt, image.data);
-
-    return true;
-  }
-
-  void Draw() { DrawTextureEx(_bolt, _corner, 0, 2.0f, WHITE); }
-
-private:
-  bool right;
-  Vector2 _corner;
-  Vector2 _currentPosition;
-  Texture2D _bolt;
-  Rectangle _window;
-};
-
 class Consumable {
 public:
   Vector2 Position;
   std::vector<Texture2D> _leftAnimation;
   std::vector<Texture2D> _rightAnimation;
+
+  bool CanConsume() { return _count < _leftAnimation.size(); }
 
   int Consume(Vector2 pos) {
     _count += 1;
@@ -105,10 +58,9 @@ class Water : public Consumable {
 public:
   Water(std::string assetsDirectory, float x) {
     Position = {.x = x, .y = 14};
-    std::string path = assetsDirectory + "/water-bowl/water-bowl.png";
+    std::string path = assetsDirectory + "water-bowl/water-bowl.png";
     Image img = LoadImage(path.c_str());
 
-    // we require that food have 6 animation frames for the water
     float frame_width = (float)img.width / 6;
 
     for (int x = 0; x < img.width; x += frame_width) {

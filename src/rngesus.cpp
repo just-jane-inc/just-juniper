@@ -17,6 +17,7 @@ std::string RandomChoice(std::vector<std::string> paths) {
   return paths[0];
 }
 
+// i am just curious - diabloproject
 bool Flip(double weight) {
   unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::mt19937 engine(seed);
