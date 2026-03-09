@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdlib>
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -346,6 +345,9 @@ public:
 private:
   std::string _assetsDirectory;
   Food *_food;
+  int _walkingAnimationCounter;
+  int _eatingAnimationCounter;
+  bool _dined;
 };
 
 class Sleeping : public TamaState {
