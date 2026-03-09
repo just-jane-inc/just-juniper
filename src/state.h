@@ -63,7 +63,7 @@ public:
     Rectangle source = Rectangle{
         .x = 0,
         .y = 0,
-        .width = float(frame.width * (_direction == 0 ? 1 : _direction)),
+        .width = float(frame.width * _direction),
         .height = float(frame.height)};
 
     Rectangle destination = Rectangle{
@@ -78,7 +78,7 @@ public:
 protected:
   std::vector<Texture2D> _textures;
   int _animationFrame;
-  int _direction;
+  int _direction = 1;
   Vector2 _drawPosition;
 };
 
