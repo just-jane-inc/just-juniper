@@ -3,15 +3,58 @@
 #include "constants.h"
 #include "tama.h"
 
-#include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <queue>
 #include <string>
-#include <thread>
 #include <unordered_map>
 
+#include <cstdlib>
+#include <cstring>
+#include <format>
+#include <raylib.h>
+#include <string>
+
+#include <emscripten/websocket.h>
+#include <nlohmann/json.hpp>
+
+EMSCRIPTEN_WEBSOCKET_T socket;
+
 #define TRANSPARENT CLITERAL(Color){0x00, 0x00, 0x00, 0x00}
+
+struct Message {
+  int id;
+};
+
+void from_json(const nlohmann::json &j, Message &d) {
+  // for the love of god stop havaing so many opinions format thing
+  j.at("id").get_to(d.id);
+}
+
+bool on_ws_open(
+    int eventType,
+    const EmscriptenWebSocketOpenEvent *event,
+    void *userData) {
+  return true;
+}
+
+bool on_ws_msg(
+    int eventType,
+    const EmscriptenWebSocketMessageEvent *event,
+    void *userData) {
+  std::string jsonStr((char *)event->data, event->numBytes);
+  auto j = nlohmann::json::parse(jsonStr);
+  Message msg = j.get<Message>();
+  TraceLog(LOG_INFO, std::format("hello juniper: {}", msg.id).c_str());
+  return true;
+}
+
+bool on_ws_closed(
+    int eventType,
+    const EmscriptenWebSocketCloseEvent *event,
+    void *userData) {
+  return true;
+}
 
 void stdin_listener(std::queue<TamaEvent> *eventQueue) {
   // map of strings expected over stdin to the enum values associated to those
@@ -40,19 +83,11 @@ void stdin_listener(std::queue<TamaEvent> *eventQueue) {
   }
 }
 
-int main() {
+void game_loop() {
   // the borders of windows are transparent for me so that it looks nicer
   // on stream. The always run flag is used to ensure that the game loop
   // executes while the application is minimized, this window is almost always
   // minimized.
-  SetConfigFlags(FLAG_WINDOW_TRANSPARENT | FLAG_WINDOW_ALWAYS_RUN);
-
-  InitWindow(
-      TamaConstant::WINDOW_WIDTH,
-      TamaConstant::WINDOW_HEIGHT,
-      "just-tamagotchi");
-
-  SetTargetFPS(60);
 
   Rectangle gameZone = Rectangle{
       .x = TamaConstant::SCREEN_X,
@@ -63,15 +98,15 @@ int main() {
   Tama tama = Tama(gameZone, "juniper");
   int animationStep = 0;
 
-  std::string path = std::string(ASSETS_PATH) + "/juniper/egg.png";
+  std::string path = "resources/juniper/egg.png";
   Image egg = LoadImage(path.c_str());
   Texture2D bg = LoadTextureFromImage(egg);
 
   int count = 0;
 
   int blah;
-  std::thread stdin_event_thread(stdin_listener, &tama.eventQueue);
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  // std::thread stdin_event_thread(stdin_listener, &tama.eventQueue);
+  // std::this_thread::sleep_for(std::chrono::seconds(1));
   UserInput uinput = UserInput();
 
   DisplayClock clock;
@@ -99,10 +134,38 @@ int main() {
   }
 
   CloseWindow();
+}
 
-  if (stdin_event_thread.joinable()) {
-    stdin_event_thread.join();
-  }
+int main() {
+  std::string wsURL = "";
+  wsURL = "ws://localhost:42075/ws";
 
+  SetConfigFlags(FLAG_WINDOW_TRANSPARENT | FLAG_WINDOW_ALWAYS_RUN);
+
+  InitWindow(
+      TamaConstant::WINDOW_WIDTH,
+      TamaConstant::WINDOW_HEIGHT,
+      "just-tamagotchi");
+
+  SetTargetFPS(60);
+
+  TraceLog(
+      LOG_INFO,
+      std::format("attempting to connect to: {}", wsURL).c_str());
+
+  EmscriptenWebSocketCreateAttributes attrs = {wsURL.c_str(), NULL, EM_TRUE};
+
+  socket = emscripten_websocket_new(&attrs);
+
+  // Set callbacks
+  emscripten_websocket_set_onopen_callback(socket, (void *)0x420, on_ws_open);
+  emscripten_websocket_set_onclose_callback(socket, (void *)0x69, on_ws_closed);
+  emscripten_websocket_set_onmessage_callback(socket, (void *)0x67, on_ws_msg);
+
+  // Set the main loop function for Emscripten
+  emscripten_set_main_loop(game_loop, 0, 1);
+
+  // This part is unreachable in the WASM build due to the main loop setup
+  CloseWindow();
   return 0;
 }

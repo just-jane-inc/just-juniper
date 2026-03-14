@@ -5,6 +5,7 @@ include(FetchContent)
 
 # Generate compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 20)
 
 # Dependencies
 set(RAYLIB_VERSION 5.5)
@@ -16,7 +17,12 @@ FetchContent_Declare(
     FIND_PACKAGE_ARGS
 )
 
-FetchContent_MakeAvailable(raylib)
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+)
+
+FetchContent_MakeAvailable(raylib json)
 
 # Our Project
 add_executable(${PROJECT_NAME})
@@ -30,18 +36,19 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:${PROJECT_NAME}>)
 
 #set(raylib_VERBOSE 1)
-target_link_libraries(${PROJECT_NAME} raylib)
+target_link_libraries(${PROJECT_NAME} PRIVATE
+  raylib
+  nlohmann_json::nlohmann_json)
+
+target_include_directories(${PROJECT_NAME} PUBLIC "/home/jane/installing/emscripten/system/include")
 
 # Web Configurations
 if ("${PLATFORM}" STREQUAL "Web")
-    # Tell Emscripten to build an example.html file.
+    add_custom_command(
+        TARGET ${PROJECT_NAME} PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/resources $<TARGET_FILE_DIR:${PROJECT_NAME}>/../resources
+    )
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
-    #    target_link_options(${PROJECT_NAME} PUBLIC -sUSE_GLFW=3 PUBLIC --preload-file resources)
-endif()
-
-# Checks if OSX and links appropriate frameworks (Only required on MacOS)
-if (APPLE)
-    target_link_libraries(${PROJECT_NAME} "-framework IOKit")
-    target_link_libraries(${PROJECT_NAME} "-framework Cocoa")
-    target_link_libraries(${PROJECT_NAME} "-framework OpenGL")
+    target_link_options(${PROJECT_NAME} PRIVATE "-lwebsocket.js" "-sUSE_GLFW=3" "-sASYNCIFY")
+    target_link_options(${PROJECT_NAME} PUBLIC --preload-file resources)
 endif()

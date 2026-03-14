@@ -168,7 +168,7 @@ private:
 class DisplayClock {
 public:
   DisplayClock() {
-    std::string font_path = std::string(ASSETS_PATH) + "font.ttf";
+    std::string font_path = "resources/font.ttf";
     _font = LoadFontEx(font_path.c_str(), 32, NULL, 0);
 
     time_t t = time(NULL);

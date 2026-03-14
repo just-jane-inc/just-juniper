@@ -1,0 +1,7 @@
+CompileFlags:
+  Add: ["--sysroot=/home/jane/installing/emsdk/upstream/emscripten/cache/sysroot",
+         "-isystem/home/jane/installing/emsdk/upstream/emscripten/cache/sysroot/include/c++/v1",
+         "-isystem/home/jane/installing/emsdk/upstream/lib/clang/23/include",
+         "-isystem/home/jane/installing/emsdk/upstream/emscripten/cache/sysroot/include"]
+  Compiler: clang++
+  CompilationDatabase: build

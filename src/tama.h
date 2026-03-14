@@ -23,7 +23,7 @@ public:
     _position = Vector2{.x = gameArea.x, .y = TamaConstant::SCREEN_FLOOR - 48};
     this->name = name;
 
-    std::string assetsDirectory = std::string(ASSETS_PATH) + name + "/";
+    std::string assetsDirectory = "resources/" + name + "/";
 
     _idleState = Idle(assetsDirectory);
     _sleepState = Sleeping(assetsDirectory);

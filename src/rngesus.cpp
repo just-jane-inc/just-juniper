@@ -5,6 +5,8 @@
 unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 std::mt19937 generator(seed);
 
+// This function is sponsored by: B.A.H.M.S. Inc. please treat
+// it with the respect it deserves. - Meisaka
 int RNG(int min, int max) {
   std::uniform_int_distribution<int> dist(min, max);
   return dist(generator);
