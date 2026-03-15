@@ -42,7 +42,7 @@
 
 .env
 
-**/build
+**/build*
 **/.cache
 **/assets
 **/resources

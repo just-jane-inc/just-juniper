@@ -85,17 +85,9 @@ class Idle : public TamaState {
 public:
   Idle() {}
 
-  Idle(std::string assetsDirectory) {
+  Idle(std::vector<Texture2D> textures) {
     state = IDLE;
-    std::string path = assetsDirectory + "idle/idle.png";
-    Image img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 24.0f) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
-
-      Image partImage = ImageFromImage(img, frame);
-      _textures.push_back(LoadTextureFromImage(partImage));
-    }
+    _textures = textures;
   }
 
   void EnterState(Vector2 *position) {
@@ -135,19 +127,9 @@ class Walking : public TamaState {
 public:
   Walking() { _animationFrame = 0; }
 
-  Walking(std::string assetsDirectory) {
+  Walking(std::vector<Texture2D> textures) {
     state = WALKING;
-
-    std::string path = assetsDirectory + "walking/walking.png";
-    Image img = LoadImage(path.c_str());
-
-    for (int x = 0; x < img.width; x += 24.0f) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
-
-      Image partImage = ImageFromImage(img, frame);
-      _textures.push_back(LoadTextureFromImage(partImage));
-    }
+    _textures = textures;
   }
 
   void EnterState(Vector2 *position) {
@@ -204,18 +186,9 @@ class Hunting : public TamaState {
 public:
   Hunting() {}
 
-  Hunting(std::string assetsDirectory) {
+  Hunting(std::vector<Texture2D> textures) {
     state = HUNTING;
-    _assetsDirectory = assetsDirectory;
-    std::string path = assetsDirectory + "walking/walking.png";
-    Image img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 24.0f) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
-
-      Image partImage = ImageFromImage(img, frame);
-      _textures.push_back(LoadTextureFromImage(partImage));
-    }
+    _textures = textures;
   }
 
   void EnterState(Vector2 *position) {
@@ -262,35 +235,15 @@ private:
   Vector2 *_position;
   int _velocity;
   int _terminalPosition;
-  std::string _assetsDirectory;
 };
 
 class Eating : public TamaState {
 public:
   Eating() {}
 
-  Eating(std::string assetsDirectory) {
+  Eating(std::vector<Texture2D> textures) {
     state = EATING;
-    _assetsDirectory = assetsDirectory;
-
-    // The eating state maintains two internal states and should likely
-    // be reworked slightly. The first internal state is the hunting/seeking
-    // state where juniper walks in the direction of food. This is followed
-    // by an internal eating state where she actually calls Consume on food.
-    //
-    // This could, and probably should, be reworked to literally be two
-    // distinct states or to just cleanup how the swap occurrs. Note
-    // that most of the oddities of this state stem from this choice
-    // to internally encode two distinct behaviors in one state.
-    std::string path = assetsDirectory + "eating/eating.png";
-    Image img = LoadImage(path.c_str());
-    for (int x = 0; x < img.width; x += 24.0f) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
-
-      Image partImage = ImageFromImage(img, frame);
-      _textures.push_back(LoadTextureFromImage(partImage));
-    }
+    _textures = textures;
   }
 
   void EnterState(Vector2 *position) {
@@ -311,6 +264,9 @@ public:
     }
 
     _food = new Food(_assetsDirectory, foodx);
+    // This comment was written on pie day
+    // (please put this on line 314 in some file )
+    // - Goblinz181
   }
 
   bool TryExitState(State next) {
@@ -343,7 +299,7 @@ public:
   }
 
 private:
-  std::string _assetsDirectory;
+  std::string _assetsDirectory = "resources/juniper/";
   Food *_food;
   int _walkingAnimationCounter;
   int _eatingAnimationCounter;
@@ -354,19 +310,9 @@ class Sleeping : public TamaState {
 public:
   Sleeping() {}
 
-  Sleeping(std::string assetsDirectory) {
+  Sleeping(std::vector<Texture2D> textures) {
     state = SLEEPING;
-
-    std::string path = assetsDirectory + "sleeping/sleeping.png";
-    Image img = LoadImage(path.c_str());
-
-    for (int x = 0; x < img.width; x += 24.0f) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
-
-      Image partImage = ImageFromImage(img, frame);
-      _textures.push_back(LoadTextureFromImage(partImage));
-    }
+    _textures = textures;
   }
 
   void EnterState(Vector2 *position) {
@@ -399,19 +345,9 @@ class EnterSleeping : public TamaState {
 public:
   EnterSleeping() {}
 
-  EnterSleeping(std::string assetsDirectory) {
+  EnterSleeping(std::vector<Texture2D> textures) {
     state = ENTER_SLEEPING;
-
-    std::string path = assetsDirectory + "enter_sleep/enter_sleep.png";
-    Image img = LoadImage(path.c_str());
-
-    for (int x = 0; x < img.width; x += 24.0f) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
-
-      Image partImage = ImageFromImage(img, frame);
-      _textures.push_back(LoadTextureFromImage(partImage));
-    }
+    _textures = textures;
   }
 
   void EnterState(Vector2 *position) {
