@@ -4,6 +4,9 @@
 #include "tama.h"
 
 #include <cstdlib>
+
+#include <condition_variable>
+#include <mutex>
 #include <queue>
 #include <string>
 #include <unordered_map>
@@ -23,6 +26,10 @@ EMSCRIPTEN_WEBSOCKET_T socket;
 #define TRANSPARENT CLITERAL(Color){0x00, 0x00, 0x00, 0x00}
 
 std::queue<TamaEvent> *tamaEventQueue = new std::queue<TamaEvent>();
+
+std::mutex mtx;
+std::condition_variable cv;
+bool callback_executed = false;
 
 const std::unordered_map<std::string, TamaEvent> TAMA_EVENT_MAP = {
     {"headpat", EVENT_HEADPAT},
@@ -101,6 +108,8 @@ bool on_ws_closed(
  * until this is done, ensure you are in a safe space and cry about it.
  */
 void OnDownloadSuccess(emscripten_fetch_t *fetch) {
+  std::lock_guard<std::mutex> lk(mtx);
+
   TraceLog(
       LOG_INFO,
       std::format("image download success: {}", fetch->url).c_str());
@@ -119,6 +128,8 @@ void OnDownloadSuccess(emscripten_fetch_t *fetch) {
       LOG_INFO,
       std::format("the image bytes are here: {}", fetch->numBytes).c_str());
 
+  callback_executed = true;
+  cv.notify_one();
   emscripten_fetch_close(fetch);
 }
 
@@ -151,34 +162,18 @@ Image Download(std::string url) {
   emscripten_fetch_attr_init(&attr);
   std::strcpy(attr.requestMethod, "GET");
 
-  attr.attributes =
-      EMSCRIPTEN_FETCH_LOAD_TO_MEMORY | EMSCRIPTEN_FETCH_SYNCHRONOUS;
-  //  attr.userData = &kill_me;
-  //  attr.onsuccess = OnDownloadSuccess;
-  //  attr.onerror = OnDownloadFailed;
+  Image kill_me;
+  attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
+  attr.userData = &kill_me;
+  attr.onsuccess = OnDownloadSuccess;
+  attr.onerror = OnDownloadFailed;
 
-  emscripten_fetch_t *fetch = emscripten_fetch(&attr, url.c_str());
+  emscripten_fetch(&attr, url.c_str());
 
-  if (fetch->status == 200) {
-    TraceLog(LOG_INFO, "yippie");
-
-    Image kill_me = LoadImageFromMemory(
-        ".png",
-        reinterpret_cast<const unsigned char *>(fetch->data),
-        fetch->numBytes);
-
-    TraceLog(
-        LOG_INFO,
-        std::format("the image bytes: {}", fetch->numBytes).c_str());
-    TraceLog(LOG_INFO, std::format("the image: {}", kill_me.height).c_str());
-
-    emscripten_fetch_close(fetch);
-    return kill_me;
-  } else {
-    TraceLog(LOG_ERROR, std::format("frick {}", fetch->status).c_str());
-  }
-
-  return Image{};
+  std::unique_lock<std::mutex> lk(mtx);
+  cv.wait(lk, [] { return callback_executed; });
+  TraceLog(LOG_INFO, "yippie");
+  return kill_me;
 }
 
 void game_loop() {
@@ -192,14 +187,16 @@ void game_loop() {
       .width = TamaConstant::SCREEN_WIDTH,
       .height = TamaConstant::SCREEN_HEIGHT};
 
-  Image juniper_sprite_sheet =
-      Download("https://bahms.org/assets/juniper/hedgehog.png");
+  // Image juniper_sprite_sheet =
+  //    Download("https://bahms.org/assets/juniper/hedgehog.png");
+  Image juniper_sprite_sheet = LoadImage("resources/juniper/hedgehog.png");
   Tama tama = Tama(gameZone, juniper_sprite_sheet);
   tama.eventQueue = tamaEventQueue;
   int animationStep = 0;
 
-  std::string egg_url = "https://bahms.org/assets/juniper/egg.png";
-  Image egg = Download(egg_url);
+  // std::string egg_url = "https://bahms.org/assets/juniper/egg.png";
+  // Image egg = Download(egg_url);
+  Image egg = LoadImage("resources/juniper/egg.png");
   Texture2D bg = LoadTextureFromImage(egg);
 
   int frame_counter = 0;

@@ -49,6 +49,6 @@ if ("${PLATFORM}" STREQUAL "Web")
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/resources $<TARGET_FILE_DIR:${PROJECT_NAME}>/../resources
     )
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
-    target_link_options(${PROJECT_NAME} PRIVATE "-lwebsocket.js" "-sUSE_GLFW=3" "-sASYNCIFY" "-sFETCH" "-pthread" "-sPTHREAD_POOL_SIZE=1" "-sPROXY_TO_PTHREAD")
+    target_link_options(${PROJECT_NAME} PRIVATE "-lwebsocket.js" "-sUSE_GLFW=3" "-sASYNCIFY" "-sFETCH")
     target_link_options(${PROJECT_NAME} PUBLIC --preload-file resources)
 endif()
