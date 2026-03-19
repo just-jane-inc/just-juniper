@@ -56,10 +56,10 @@ public:
     std::vector<Texture2D> transition_texture;
     for (int x = 0; x < 5; x++) {
       Rectangle frame =
-          Rectangle{.x = x * 24.0f, .y = 48.0f, .width = 24.0f, .height = 24};
+          Rectangle{.x = x * 24.0f, .y = 72.0f, .width = 24.0f, .height = 24};
 
       Image partImage = ImageFromImage(sprite_sheet, frame);
-      sleeping_texture.push_back(LoadTextureFromImage(partImage));
+      transition_texture.push_back(LoadTextureFromImage(partImage));
     }
 
     std::vector<Texture2D> eating_textures;

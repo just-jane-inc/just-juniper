@@ -5,8 +5,6 @@
 
 #include <cstdlib>
 
-#include <condition_variable>
-#include <mutex>
 #include <queue>
 #include <string>
 #include <unordered_map>
@@ -27,9 +25,19 @@ EMSCRIPTEN_WEBSOCKET_T socket;
 
 std::queue<TamaEvent> *tamaEventQueue = new std::queue<TamaEvent>();
 
-std::mutex mtx;
-std::condition_variable cv;
-bool callback_executed = false;
+struct Asset {
+  std::string url;
+  Image img = {0};
+  bool is_loaded;
+  bool load_failed;
+};
+
+// we have global references to these assets
+// to use for our textures. this is done so that we
+// can inspect them in the game loop while waiting for
+// our resources to be fetched.
+static Asset _egg;
+static Asset _hedgehog;
 
 const std::unordered_map<std::string, TamaEvent> TAMA_EVENT_MAP = {
     {"headpat", EVENT_HEADPAT},
@@ -67,17 +75,16 @@ bool on_ws_msg(
     void *gameState) {
 
   std::string json_str;
-
-  if (event->isText) {
-    json_str = std::string((char *)event->data, event->numBytes);
-  }
-
-  if (json_str == "PING") {
-    emscripten_websocket_send_utf8_text(socket, "PONG");
-  }
-
+  json_str = std::string((char *)event->data, event->numBytes);
+  TraceLog(LOG_INFO, std::format("received: {}", json_str).c_str());
   try {
     Message msg = nlohmann::json::parse(json_str).get<Message>();
+
+    if (msg.eventType.starts_with("PING")) {
+      emscripten_websocket_send_utf8_text(socket, "PONG");
+      return true;
+    }
+
     if (TAMA_EVENT_MAP.contains(msg.eventType)) {
       tamaEventQueue->push(TAMA_EVENT_MAP.at(msg.eventType));
     } else {
@@ -94,10 +101,13 @@ bool on_ws_msg(
   return true;
 }
 
+// Thank you, swerocker1993 - Captain_Onosa
 bool on_ws_closed(
     int eventType,
     const EmscriptenWebSocketCloseEvent *event,
     void *userData) {
+
+  // Thank you, swerocker1993 - ty999999
   reload_web_page();
   return true;
 }
@@ -108,72 +118,67 @@ bool on_ws_closed(
  * until this is done, ensure you are in a safe space and cry about it.
  */
 void OnDownloadSuccess(emscripten_fetch_t *fetch) {
-  std::lock_guard<std::mutex> lk(mtx);
+  auto *dst = static_cast<Asset *>(fetch->userData);
 
   TraceLog(
       LOG_INFO,
-      std::format("image download success: {}", fetch->url).c_str());
-
-  // this is perfectly safe.
-  Image *img = static_cast<Image *>(fetch->userData);
+      TextFormat(
+          "download ok: %s (%d bytes)",
+          fetch->url,
+          (int)fetch->numBytes));
 
   // The data resides in the bytes of the PNG format,
   // which is assumed to work justja211Noted - Meisaka
-  *img = LoadImageFromMemory(
+  dst->img = LoadImageFromMemory(
       ".png",
       reinterpret_cast<const unsigned char *>(fetch->data),
-      fetch->numBytes);
+      (int)fetch->numBytes);
+
+  if (IsImageValid(dst->img)) {
+    dst->is_loaded = true;
+    dst->load_failed = false;
+  } else {
+    dst->is_loaded = false;
+    dst->load_failed = true;
+    TraceLog(
+        LOG_ERROR,
+        TextFormat("LoadImageFromMemory failed for %s", fetch->url));
+  }
+
+  emscripten_fetch_close(fetch);
+}
+
+// to be debugged in the future - intrikist
+void OnDownloadFailed(emscripten_fetch_t *fetch) {
+  auto *dst = static_cast<Asset *>(fetch->userData);
+  dst->load_failed = true;
 
   TraceLog(
-      LOG_INFO,
-      std::format("the image bytes are here: {}", fetch->numBytes).c_str());
-
-  callback_executed = true;
-  cv.notify_one();
+      LOG_ERROR,
+      TextFormat("download failed: %s status=%d", fetch->url, fetch->status));
   emscripten_fetch_close(fetch);
 }
 
-void OnDownloadFailed(emscripten_fetch_t *fetch) {
-  TraceLog(LOG_ERROR, "panic...");
-  emscripten_fetch_close(fetch);
-}
+// break this code again in the future - TheChowMein
+void StartDownload(Asset &img, const char *url) {
+  img = {};
+  img.url = url;
 
-/*
- *
- int main() {
-  emscripten_fetch_attr_t attr;
-  emscripten_fetch_attr_init(&attr);
-  strcpy(attr.requestMethod, "GET");
-  attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY |
-EMSCRIPTEN_FETCH_SYNCHRONOUS; emscripten_fetch_t *fetch =
-emscripten_fetch(&attr, "file.dat"); // Blocks here until the operation is
-complete. if (fetch->status == 200) { printf("Finished downloading %llu bytes
-from URL %s.\n", fetch->numBytes, fetch->url);
-    // The data is now available at fetch->data[0] through
-fetch->data[fetch->numBytes-1]; } else { printf("Downloading %s failed, HTTP
-failure status code: %d.\n", fetch->url, fetch->status);
-  }
-  emscripten_fetch_close(fetch);
-}
- */
-Image Download(std::string url) {
-  // TODO: what the actual frick is this?
   emscripten_fetch_attr_t attr;
   emscripten_fetch_attr_init(&attr);
   std::strcpy(attr.requestMethod, "GET");
-
-  Image kill_me;
   attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
-  attr.userData = &kill_me;
+  attr.userData = &img;
   attr.onsuccess = OnDownloadSuccess;
   attr.onerror = OnDownloadFailed;
 
-  emscripten_fetch(&attr, url.c_str());
+  emscripten_fetch(&attr, url);
+}
 
-  std::unique_lock<std::mutex> lk(mtx);
-  cv.wait(lk, [] { return callback_executed; });
-  TraceLog(LOG_INFO, "yippie");
-  return kill_me;
+// just comment - asahi_KIRIN
+void init_game() {
+  StartDownload(_hedgehog, "https://bahms.org/assets/juniper/hedgehog.png");
+  StartDownload(_egg, "https://bahms.org/assets/juniper/egg.png");
 }
 
 void game_loop() {
@@ -187,27 +192,41 @@ void game_loop() {
       .width = TamaConstant::SCREEN_WIDTH,
       .height = TamaConstant::SCREEN_HEIGHT};
 
-  // Image juniper_sprite_sheet =
-  //    Download("https://bahms.org/assets/juniper/hedgehog.png");
-  Image juniper_sprite_sheet = LoadImage("resources/juniper/hedgehog.png");
-  Tama tama = Tama(gameZone, juniper_sprite_sheet);
-  tama.eventQueue = tamaEventQueue;
+  Tama *tama;
+  Texture2D bg;
+
   int animationStep = 0;
-
-  // std::string egg_url = "https://bahms.org/assets/juniper/egg.png";
-  // Image egg = Download(egg_url);
-  Image egg = LoadImage("resources/juniper/egg.png");
-  Texture2D bg = LoadTextureFromImage(egg);
-
   int frame_counter = 0;
 
   UserInput uinput = UserInput();
 
   DisplayClock clock;
 
+  bool bg_done = false;
+  bool hedgehog_done = false;
+
   while (!WindowShouldClose()) {
-    frame_counter += 1;
-    tama.Update();
+    frame_counter++;
+
+    // Finish asset setup once downloads are ready
+    if (!bg_done && _egg.is_loaded) {
+      bg = LoadTextureFromImage(_egg.img);
+      bg_done = true;
+      UnloadImage(_egg.img);
+    }
+
+    if (!hedgehog_done && _hedgehog.is_loaded) {
+      tama = new Tama(gameZone, _hedgehog.img);
+      tama->eventQueue = tamaEventQueue;
+      hedgehog_done = true;
+      UnloadImage(_hedgehog.img);
+    }
+
+    if (!hedgehog_done || !bg_done) {
+      continue;
+    }
+
+    tama->Update();
     clock.Update(frame_counter);
 
     // check if the application has received
@@ -215,14 +234,14 @@ void game_loop() {
     // to the event queue.
     TamaEvent e = uinput.CheckForInput();
     if (e != EVENT_UNSET) {
-      tama.eventQueue->push(e);
+      tama->eventQueue->push(e);
     }
 
     BeginDrawing();
     ClearBackground(TRANSPARENT);
     DrawTextureEx(bg, {0.0, 0.0}, 0.0, 1.0, WHITE);
 
-    tama.Draw();
+    tama->Draw();
     clock.Draw();
     EndDrawing();
   }
@@ -241,6 +260,8 @@ int main() {
       "just-tamagotchi");
 
   SetTargetFPS(60);
+
+  init_game();
 
   TraceLog(
       LOG_INFO,
