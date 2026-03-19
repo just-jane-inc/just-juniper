@@ -8,11 +8,8 @@
 #include <iostream>
 #include <queue>
 #include <string>
-#include <sw/redis++/redis++.h>
 #include <thread>
 #include <unordered_map>
-
-using namespace sw::redis;
 
 #define TRANSPARENT CLITERAL(Color){0x00, 0x00, 0x00, 0x00}
 
@@ -23,6 +20,7 @@ void stdin_listener(std::queue<TamaEvent> *eventQueue) {
       {"headpat", EVENT_HEADPAT},
       {"hydrate", EVENT_HYDRATE},
       {"food", EVENT_FOOD},
+      {"game", EVENT_GAME},
   };
 
   // we are just going to block on stdin in this function which is called in a
