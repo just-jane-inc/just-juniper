@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <chrono>
 #include <random>
 #include <stdexcept>
@@ -8,13 +7,9 @@ std::mt19937 generator(seed);
 // This function is sponsored by: B.A.H.M.S. Inc. please treat
 // it with the respect it deserves. - Meisaka
 int RNG(int min, int max) {
+  // note that max is included in the distribution.
   std::uniform_int_distribution<int> dist(min, max);
   return dist(generator);
-}
-
-std::string RandomChoice(std::vector<std::string> paths) {
-  std::shuffle(paths.begin(), paths.end(), generator);
-  return paths[0];
 }
 
 // i am just curious - diabloproject

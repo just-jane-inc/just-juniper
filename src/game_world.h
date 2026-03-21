@@ -1,7 +1,6 @@
 #pragma once
 
 #include "constants.h"
-#include "rngesus.h"
 #include <algorithm>
 #include <cstdio>
 #include <ctime>
@@ -11,13 +10,21 @@
 
 #include "raylib.h"
 
+// You will not be to fix this code. This fundamental piece
+// of infrastructure is fundamentally and unreversably entrenched
+// into this codebase, to the level where changing any behaviour
+// of the following piece of code will cause severe concussion
+// of the core part of the system, and you will waste all the
+// time trying to make it at least semi-functional. If you were
+// tasked to touch this segment, spend couple of hours here,
+// close the ticket and increment the counter. Thank you. Victim counter: 14
+// - diabloproject
 class Consumable {
 public:
   Vector2 Position;
-  std::vector<Texture2D> _leftAnimation;
-  std::vector<Texture2D> _rightAnimation;
+  std::vector<Texture2D> _textures;
 
-  bool CanConsume() { return _count < _leftAnimation.size(); }
+  bool CanConsume() { return _count < _textures.size(); }
 
   int Consume(Vector2 pos) {
     _count += 1;
@@ -26,91 +33,49 @@ public:
     // the character is to the right of the food and should
     // be consuming from left (it is facing left)
     if (pos.x > Position.x) {
-      _fromRight = false;
-      return std::max((int)_leftAnimation.size() - _count, 0);
+      _direction = -1;
+      return std::max((int)_textures.size() - _count, 0);
     } else {
-      _fromRight = true;
-      return std::max((int)_rightAnimation.size() - _count, 0);
+      _direction = 1;
+      return std::max((int)_textures.size() - _count, 0);
     }
   }
 
   void Draw() {
-    if (_count >= _leftAnimation.size() - 1) {
+    if (_count >= _textures.size() - 1) {
       return;
     }
 
-    Texture2D frame;
-    if (_fromRight) {
-      frame = _rightAnimation[_count];
-    } else {
-      frame = _leftAnimation[_count];
-    }
+    Texture2D frame = _textures[_count];
+    Rectangle source = Rectangle{
+        .x = 0,
+        .y = 0,
+        .width = float(frame.width * _direction),
+        .height = float(frame.height)};
 
-    DrawTextureEx(frame, Position, 0, 1.0f, WHITE);
+    Rectangle destination = Rectangle{
+        .x = Position.x,
+        .y = Position.y,
+        .width = float(frame.width) * 2,
+        .height = float(frame.height) * 2};
+
+    DrawTextureEx(frame, Position, 0, 1, WHITE);
   }
 
 private:
   int _count = 0;
-  bool _fromRight = false;
+  int _direction = 1;
 };
 
 class Water : public Consumable {
 public:
-  Water(std::string assetsDirectory, float x) {
-    Position = {.x = x, .y = 14};
-    std::string path = assetsDirectory + "water-bowl/water-bowl.png";
-    Image img = LoadImage(path.c_str());
-
-    float frame_width = (float)img.width / 6;
-
-    for (int x = 0; x < img.width; x += frame_width) {
-      Rectangle frame = Rectangle{
-          .x = (float)x,
-          .y = 0,
-          .width = (float)frame_width,
-          .height = (float)img.height};
-
-      Image partImage = ImageFromImage(img, frame);
-      _rightAnimation.push_back(LoadTextureFromImage(partImage));
-
-      ImageFlipHorizontal(&partImage);
-      _leftAnimation.push_back(LoadTextureFromImage(partImage));
-    }
-  }
+  Water(std::string assetsDirectory, float x) {}
 };
 
 class Food : public Consumable {
 public:
-  Food(std::string assetsDirectory, float x) {
-    std::vector<std::string> foods;
-    foods.push_back(assetsDirectory + "food/apple.png");
-    foods.push_back(assetsDirectory + "food/blueberry.png");
-    foods.push_back(assetsDirectory + "food/cookie.png");
-    foods.push_back(assetsDirectory + "food/carrot.png");
-
-    std::string path = RandomChoice(foods);
-
-    Image img = LoadImage(path.c_str());
-
-    // we require that food have 8 animation frames that represent
-    // being eaten from the left.
-    float frame_width = (float)img.width / 8;
-
-    // 67 - Mr_Autio
-    for (int x = 0; x < img.width; x += frame_width) {
-      Rectangle frame = Rectangle{
-          .x = (float)x,
-          .y = 0,
-          .width = (float)frame_width,
-          .height = (float)img.height};
-
-      Image partImage = ImageFromImage(img, frame);
-      _rightAnimation.push_back(LoadTextureFromImage(partImage));
-
-      ImageFlipHorizontal(&partImage);
-      _leftAnimation.push_back(LoadTextureFromImage(partImage));
-    }
-
+  Food(float x, const std::vector<Texture2D> &textures) {
+    _textures = textures;
     Position = {x, TamaConstant::SCREEN_FLOOR - 16.0};
   }
 };
@@ -202,3 +167,5 @@ private:
   long _counter;
   struct tm *_time;
 };
+
+static Food *FOOD;

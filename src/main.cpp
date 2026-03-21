@@ -3,6 +3,7 @@
 #include "constants.h"
 #include "tama.h"
 
+#include <cstddef>
 #include <cstdlib>
 
 #include <queue>
@@ -25,6 +26,8 @@ EMSCRIPTEN_WEBSOCKET_T socket;
 
 std::queue<TamaEvent> *tamaEventQueue = new std::queue<TamaEvent>();
 
+// A struct used to track the loading of an image asset
+// This is NOT a comment! - ty999999
 struct Asset {
   std::string url;
   Image img = {0};
@@ -37,7 +40,8 @@ struct Asset {
 // can inspect them in the game loop while waiting for
 // our resources to be fetched.
 static Asset _egg;
-static Asset _hedgehog;
+static Asset _tama_sprite;
+static Asset _food;
 
 const std::unordered_map<std::string, TamaEvent> TAMA_EVENT_MAP = {
     {"headpat", EVENT_HEADPAT},
@@ -177,8 +181,12 @@ void StartDownload(Asset &img, const char *url) {
 
 // just comment - asahi_KIRIN
 void init_game() {
-  StartDownload(_hedgehog, "https://bahms.org/assets/juniper/hedgehog.png");
+  StartDownload(
+      _tama_sprite,
+      "https://bahms.org/assets/juniper/juniper_210326.png");
+
   StartDownload(_egg, "https://bahms.org/assets/juniper/egg.png");
+  StartDownload(_food, "https://bahms.org/assets/juniper/food_sprites.png");
 }
 
 void game_loop() {
@@ -192,18 +200,18 @@ void game_loop() {
       .width = TamaConstant::SCREEN_WIDTH,
       .height = TamaConstant::SCREEN_HEIGHT};
 
-  Tama *tama;
+  Tama *tama = nullptr;
   Texture2D bg;
+
+  bool bg_done = false;
 
   int animationStep = 0;
   int frame_counter = 0;
 
   UserInput uinput = UserInput();
 
+  // beyond code - TheChowMein
   DisplayClock clock;
-
-  bool bg_done = false;
-  bool hedgehog_done = false;
 
   while (!WindowShouldClose()) {
     frame_counter++;
@@ -215,14 +223,16 @@ void game_loop() {
       UnloadImage(_egg.img);
     }
 
-    if (!hedgehog_done && _hedgehog.is_loaded) {
-      tama = new Tama(gameZone, _hedgehog.img);
+    if (tama == nullptr && _tama_sprite.is_loaded && _food.is_loaded) {
+      tama = new Tama(gameZone, _tama_sprite.img, _food.img);
       tama->eventQueue = tamaEventQueue;
-      hedgehog_done = true;
-      UnloadImage(_hedgehog.img);
+      UnloadImage(_tama_sprite.img);
+      UnloadImage(_food.img);
     }
 
-    if (!hedgehog_done || !bg_done) {
+    // if we have not loaded our assets do not continue
+    // everything below requires a fully initialized game
+    if (tama == nullptr || !bg_done) {
       continue;
     }
 

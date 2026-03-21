@@ -57,21 +57,10 @@ public:
   virtual State Update(long frameCounter) = 0;
 
   virtual void Draw() {
-    Texture2D frame = _textures[_animationFrame];
-
-    Rectangle source = Rectangle{
-        .x = 0,
-        .y = 0,
-        .width = float(frame.width * _direction),
-        .height = float(frame.height)};
-
-    Rectangle destination = Rectangle{
-        .x = _drawPosition.x,
-        .y = _drawPosition.y,
-        .width = float(frame.width) * 2,
-        .height = float(frame.height) * 2};
-
-    DrawTexturePro(frame, source, destination, {0, 0}, 0.0, WHITE);
+    DrawTama(
+        _textures[_animationFrame % _textures.size()],
+        _drawPosition,
+        _direction > 0);
   }
 
 protected:
@@ -186,7 +175,23 @@ class Hunting : public TamaState {
 public:
   Hunting() {}
 
-  Hunting(std::vector<Texture2D> textures) {
+  Hunting(std::vector<Texture2D> textures, Image food) {
+    for (int row = 0; row < 4; row += 1) {
+      std::vector<Texture2D> curr;
+      for (int col = 0; col < 8; ++col) {
+        Rectangle frame = Rectangle{
+            .x = col * 16.0f,
+            .y = row * 16.0f,
+            .width = 16.0f,
+            .height = 16.0f};
+
+        Image partImage = ImageFromImage(food, frame);
+        curr.push_back(LoadTextureFromImage(partImage));
+      }
+
+      _foods.push_back(curr);
+    }
+
     state = HUNTING;
     _textures = textures;
   }
@@ -201,6 +206,23 @@ public:
     } else {
       _terminalPosition = window.x + 20;
     }
+
+    // figure out if juniper is on left or right side of screen,
+    // spawn food on opposite side, walk toward it then eat
+    bool right = position->x > (window.x + (window.width / 2.0f));
+
+    float foodx;
+    if (!right) {
+      foodx = window.x + window.width - 24;
+      _direction = 1;
+    } else {
+      foodx = window.x + 6;
+      _direction = -1;
+    }
+
+    // we use bogosor to make the following code more efficient - Red_Epicness
+    std::vector<Texture2D> texture = _foods[RNG(0, _foods.size() - 1)];
+    FOOD = new Food(foodx, texture);
   }
 
   bool TryExitState(State next) {
@@ -229,12 +251,15 @@ public:
         _textures[_animationFrame % _textures.size()],
         *_position,
         _direction > 0);
+
+    FOOD->Draw();
   }
 
 private:
   Vector2 *_position;
   int _velocity;
   int _terminalPosition;
+  std::vector<std::vector<Texture2D>> _foods;
 };
 
 class Eating : public TamaState {
@@ -249,32 +274,24 @@ public:
   void EnterState(Vector2 *position) {
     _animationFrame = 0;
     _drawPosition = *position;
-
-    // figure out if juniper is on left or right side of screen,
-    // spawn food on opposite side, walk toward it then eat
-    bool right = position->x > (window.x + (window.width / 2.0f));
-
-    float foodx;
-    if (right) {
-      foodx = window.x + window.width - 24;
-      _direction = 1;
-    } else {
-      foodx = window.x + 6;
-      _direction = -1;
-    }
-
-    _food = new Food(_assetsDirectory, foodx);
     // This comment was written on pie day
     // (please put this on line 314 in some file )
     // - Goblinz181
+    //-
+
+    if (position->x > (window.x + (window.width / 2.0f))) {
+      _direction = 1;
+    } else {
+      _direction = -1;
+    }
   }
 
   bool TryExitState(State next) {
-    if (_food->CanConsume()) {
+    if (FOOD->CanConsume()) {
       return false;
     }
 
-    delete _food;
+    delete FOOD;
     return true;
   }
 
@@ -284,7 +301,7 @@ public:
     }
 
     _animationFrame += 1;
-    if (_animationFrame > 0 && _food->Consume(_drawPosition) <= 0) {
+    if (_animationFrame > 0 && FOOD->Consume(_drawPosition) <= 0) {
       return Flip(0.5) ? IDLE : WALKING;
     }
 
@@ -295,12 +312,10 @@ public:
     Texture2D tama;
     tama = _textures[_animationFrame % _textures.size()];
     DrawTama(tama, _drawPosition, _direction > 0);
-    _food->Draw();
+    FOOD->Draw();
   }
 
 private:
-  std::string _assetsDirectory = "resources/juniper/";
-  Food *_food;
   int _walkingAnimationCounter;
   int _eatingAnimationCounter;
   bool _dined;
@@ -380,19 +395,9 @@ class Headpat : public TamaState {
 public:
   Headpat() {}
 
-  Headpat(std::string assetsDirectory) {
+  Headpat(std::vector<Texture2D> textures) {
     state = HEADPAT;
-
-    std::string path = assetsDirectory + "head-pat/headpat.png";
-    Image img = LoadImage(path.c_str());
-
-    for (int x = 0; x < img.width; x += 24.0f) {
-      Rectangle frame =
-          Rectangle{.x = (float)x, .y = 0, .width = 24.0f, .height = 24};
-
-      Image partImage = ImageFromImage(img, frame);
-      _textures.push_back(LoadTextureFromImage(partImage));
-    }
+    _textures = textures;
   }
 
   void EnterState(Vector2 *position) {

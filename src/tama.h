@@ -19,11 +19,10 @@ public:
    * @param gameArea the part of the screen that is valid for the character
    * @param sprite_sheet the image to use for sprite sheet
    */
-  Tama(Rectangle gameArea, Image sprite_sheet) {
+  Tama(Rectangle gameArea, Image sprite_sheet, Image food) {
     _gameArea = gameArea;
     _position = Vector2{.x = gameArea.x, .y = TamaConstant::SCREEN_FLOOR - 48};
 
-    _headPatState = Headpat("resources/juniper/");
     _jankenState = Janken("resources/juniper/");
 
     std::vector<Texture2D> idle_texture;
@@ -62,6 +61,15 @@ public:
       transition_texture.push_back(LoadTextureFromImage(partImage));
     }
 
+    std::vector<Texture2D> headpat_textures;
+    for (int x = 0; x < 8; x++) {
+      Rectangle frame =
+          Rectangle{.x = x * 24.0f, .y = 96.0f, .width = 24.0f, .height = 24};
+
+      Image partImage = ImageFromImage(sprite_sheet, frame);
+      headpat_textures.push_back(LoadTextureFromImage(partImage));
+    }
+
     std::vector<Texture2D> eating_textures;
     for (Texture2D texture : transition_texture) {
       eating_textures.push_back(texture);
@@ -77,6 +85,7 @@ public:
       eating_textures.push_back(*rit);
     }
 
+    _headPatState = Headpat(headpat_textures);
     _idleState = Idle(idle_texture);
     _sleepState = Sleeping(sleeping_texture);
     _enterSleepingState = EnterSleeping(transition_texture);
@@ -87,7 +96,7 @@ public:
     _eating = Eating(eating_textures);
     _eating.window = _gameArea;
 
-    _huntingState = Hunting(walking_texture);
+    _huntingState = Hunting(walking_texture, food);
     _huntingState.window = _gameArea;
 
     currentState = &_walkingState;
@@ -110,8 +119,16 @@ public:
 
       switch (e) {
       case EVENT_HYDRATE:
+        TraceLog(
+            LOG_ERROR,
+            "received HYDRATE request, hydrate is not implemented...");
+        eventQueue->pop();
+        break;
       case EVENT_UNSET:
-        TraceLog(LOG_INFO, "we surely never get here that would be weird");
+        TraceLog(
+            LOG_ERROR,
+            "received UNSET request, hydrate is not implemented...");
+        eventQueue->pop();
         break;
       case EVENT_GAME:
         eventFired = true;
@@ -120,7 +137,6 @@ public:
       case EVENT_HEADPAT:
         eventFired = true;
         nextState = HEADPAT;
-        TraceLog(LOG_INFO, "headpad event doing thing?");
         break;
       case EVENT_FOOD:
         eventFired = true;
