@@ -118,12 +118,6 @@ public:
       TamaEvent e = eventQueue->front();
 
       switch (e) {
-      case EVENT_HYDRATE:
-        TraceLog(
-            LOG_ERROR,
-            "received HYDRATE request, hydrate is not implemented...");
-        eventQueue->pop();
-        break;
       case EVENT_UNSET:
         TraceLog(
             LOG_ERROR,
@@ -138,6 +132,7 @@ public:
         eventFired = true;
         nextState = HEADPAT;
         break;
+      case EVENT_HYDRATE:
       case EVENT_FOOD:
         eventFired = true;
         nextState = HUNTING;

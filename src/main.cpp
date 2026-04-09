@@ -189,6 +189,28 @@ void init_game() {
   StartDownload(_food, "https://bahms.org/assets/juniper/food_sprites.png");
 }
 
+// Let me tell you a story. A long time ago, a lonely girl
+// started to explore the world of software engineering.
+// She wasn’t brave or powerful, but she had something
+// much more important on her side: patience and persistence.
+// The girl enjoyed every curly brace and every comma,
+// and her speed of information consumption was immeasurable.
+//
+// As nights progressed, as the days blurred past, she was
+// becoming a master of the trade. But unlike the stories from
+// the children's books, this story has no happy ending. One day,
+// the girl stumbled across something forbidden. Everyone she
+// knew was discouraging her, saying that this is the path
+// of no return, and that she will ruin herself. But she did not listen.
+//
+// She started writing C++.
+//
+// Slowly, bit by bit, she was consumed by dark poison of this evil,
+// until her brain became one of clang++. It was painful, but her desire
+// for new knowledge was stronger than the pain. Staring into the void of STL,
+// she spoke her last words. This prophecy is documented in the function below,
+// treat them with the reverence she deserves.
+// - diabloproject
 void game_loop() {
   // the borders of windows are transparent for me so that it looks nicer
   // on stream. The always run flag is used to ensure that the game loop

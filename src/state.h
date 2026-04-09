@@ -176,7 +176,7 @@ public:
   Hunting() {}
 
   Hunting(std::vector<Texture2D> textures, Image food) {
-    for (int row = 0; row < 4; row += 1) {
+    for (int row = 0; row < 5; row += 1) {
       std::vector<Texture2D> curr;
       for (int col = 0; col < 8; ++col) {
         Rectangle frame = Rectangle{
